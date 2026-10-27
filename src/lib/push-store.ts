@@ -66,15 +66,23 @@ export interface TaskoraServerStore {
 
 // ─── Persistence ─────────────────────────────────────────────────────────────
 
-const DATA_DIR = path.join(process.cwd(), 'data');
+const IS_VERCEL = Boolean(process.env.VERCEL);
+const DATA_DIR = IS_VERCEL
+  ? path.join('/tmp', 'taskora-data')
+  : path.join(process.cwd(), 'data');
 const STORE_FILE = path.join(DATA_DIR, 'taskora-server-store.json');
+const SEED_FILE = path.join(process.cwd(), 'data', 'taskora-server-store.json');
 
 // In-memory cache for fast reads
 let memoryCache: TaskoraServerStore | null = null;
 
 function ensureDataDir(): void {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+  } catch (err) {
+    console.warn('[Taskora Store] ensureDataDir warning:', err);
   }
 }
 
@@ -90,6 +98,13 @@ export function readStore(): TaskoraServerStore {
     if (fs.existsSync(STORE_FILE)) {
       const raw = fs.readFileSync(STORE_FILE, 'utf-8');
       memoryCache = JSON.parse(raw) as TaskoraServerStore;
+    } else if (IS_VERCEL && fs.existsSync(SEED_FILE)) {
+      // Seed from bundled file in Vercel serverless environment
+      const raw = fs.readFileSync(SEED_FILE, 'utf-8');
+      memoryCache = JSON.parse(raw) as TaskoraServerStore;
+    }
+
+    if (memoryCache) {
       if (!memoryCache.subscriptions) memoryCache.subscriptions = [];
       if (!memoryCache.reminders) memoryCache.reminders = [];
       if (!memoryCache.deliveryLog) memoryCache.deliveryLog = [];
