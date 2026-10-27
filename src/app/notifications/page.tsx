@@ -125,10 +125,14 @@ export default function NotificationSettingsPage() {
   };
 
   const handleTestNotification = async () => {
+    if (isTesting) return;
     setIsTesting(true);
-    const res = await sendTestNotification();
-    setIsTesting(false);
-    loadDeviceData();
+    try {
+      await sendTestNotification();
+    } finally {
+      setIsTesting(false);
+      loadDeviceData();
+    }
   };
 
   const handleRemoveDevice = async (deviceId: string, deviceName: string) => {

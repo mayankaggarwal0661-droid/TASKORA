@@ -651,20 +651,26 @@ export function TaskoraProvider({ children }: { children: React.ReactNode }) {
   }, [tasks, addToast]);
 
   const sendTestNotification = useCallback(async () => {
-    const res = await NotificationService.triggerTestAsync(notificationSettings);
-    if (res.success) {
-      addToast({ title: 'Test Alert Sent', message: res.message, type: 'success' });
-      if (notificationSettings.soundAlerts && notificationSettings.soundId !== 'silent') {
-        soundService.playNotificationSound(
-          notificationSettings.soundId || 'soft-chime',
-          notificationSettings.soundVolume ?? 0.7,
-          customSoundDataUrlRef.current
-        );
+    try {
+      const res = await NotificationService.triggerTestAsync(notificationSettings);
+      if (res.success) {
+        addToast({ title: 'Test Alert Sent', message: res.message, type: 'success' });
+        if (notificationSettings.soundAlerts && notificationSettings.soundId !== 'silent') {
+          soundService.playNotificationSound(
+            notificationSettings.soundId || 'soft-chime',
+            notificationSettings.soundVolume ?? 0.7,
+            customSoundDataUrlRef.current
+          );
+        }
+      } else {
+        addToast({ title: 'Test Alert Status', message: res.message, type: 'warning' });
       }
-    } else {
-      addToast({ title: 'Test Alert Status', message: res.message, type: 'warning' });
+      return res;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'An error occurred while dispatching test alert.';
+      addToast({ title: 'Test Alert Failed', message: msg, type: 'error' });
+      return { success: false, message: msg };
     }
-    return res;
   }, [notificationSettings, addToast]);
 
   // --- PROFILE ACTIONS ---

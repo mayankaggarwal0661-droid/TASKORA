@@ -91,14 +91,41 @@ export function getClientDeviceType(): 'desktop' | 'mobile' | 'tablet' {
 }
 
 /**
+ * Helper to safely get an active service worker registration with a strict timeout.
+ * Prevents navigator.serviceWorker.ready from hanging indefinitely.
+ */
+async function getReadyServiceWorker(timeoutMs = 2500): Promise<ServiceWorkerRegistration | null> {
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return null;
+
+  try {
+    // Check if there is already an active registration
+    const existing = await navigator.serviceWorker.getRegistration();
+    if (existing?.active) return existing;
+
+    // Race ready with timeout so callers never hang
+    const readyPromise = navigator.serviceWorker.ready;
+    const timeoutPromise = new Promise<null>((resolve) =>
+      setTimeout(() => resolve(null), timeoutMs)
+    );
+
+    return await Promise.race([readyPromise, timeoutPromise]);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Register Service Worker
  */
 export async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
   if (!isWebPushSupported()) return null;
   try {
+    const existing = await navigator.serviceWorker.getRegistration();
+    if (existing?.active) return existing;
+
     const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-    await navigator.serviceWorker.ready;
-    return reg;
+    const ready = await getReadyServiceWorker(3000);
+    return ready || reg;
   } catch (err) {
     console.error('[WebPush] Service Worker registration failed:', err);
     return null;
@@ -111,7 +138,8 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
 export async function getCurrentPushSubscription(): Promise<PushSubscription | null> {
   if (!isWebPushSupported()) return null;
   try {
-    const reg = await navigator.serviceWorker.ready;
+    const reg = await getReadyServiceWorker(2500);
+    if (!reg?.pushManager) return null;
     return await reg.pushManager.getSubscription();
   } catch {
     return null;
@@ -237,6 +265,9 @@ export async function sendTestPushNotification(): Promise<{
     const sub = await getCurrentPushSubscription();
     const userId = getOrCreateUserId();
 
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 6000);
+
     const res = await fetch('/api/push/send-test', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -244,6 +275,9 @@ export async function sendTestPushNotification(): Promise<{
         endpoint: sub?.endpoint,
         userId,
       }),
+      signal: controller.signal,
+    }).finally(() => {
+      clearTimeout(timer);
     });
 
     const data = await res.json();
@@ -253,7 +287,11 @@ export async function sendTestPushNotification(): Promise<{
 
     return { success: true, message: data.message };
   } catch (err) {
-    return { success: false, error: String(err) };
+    const message = err instanceof Error ? err.message : String(err);
+    if (message.includes('abort') || message.includes('signal')) {
+      return { success: false, error: 'Push request timed out after 6 seconds.' };
+    }
+    return { success: false, error: message };
   }
 }
 

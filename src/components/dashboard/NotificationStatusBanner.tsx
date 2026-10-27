@@ -1,9 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useTaskora } from '@/context/TaskoraContext';
 import { Button } from '@/components/ui/Button';
-import { Bell, CheckCircle2, AlertCircle, ShieldCheck } from 'lucide-react';
+import { Bell, CheckCircle2, AlertCircle, ShieldCheck, RefreshCw } from 'lucide-react';
 
 export function NotificationStatusBanner() {
   const {
@@ -11,6 +11,18 @@ export function NotificationStatusBanner() {
     requestNotificationPermission,
     sendTestNotification
   } = useTaskora();
+
+  const [isTesting, setIsTesting] = useState(false);
+
+  const handleTest = async () => {
+    if (isTesting) return;
+    setIsTesting(true);
+    try {
+      await sendTestNotification();
+    } finally {
+      setIsTesting(false);
+    }
+  };
 
   const isGranted = notificationSettings.permission === 'granted';
   const isDenied = notificationSettings.permission === 'denied';
@@ -73,11 +85,16 @@ export function NotificationStatusBanner() {
           <Button
             variant="secondary"
             size="sm"
-            onClick={sendTestNotification}
-            className="text-xs"
+            onClick={handleTest}
+            disabled={isTesting}
+            className="text-xs flex items-center gap-1"
           >
-            <Bell className="w-3.5 h-3.5 mr-1" />
-            Send Test Alert
+            {isTesting ? (
+              <RefreshCw className="w-3.5 h-3.5 text-[#718368] animate-spin" />
+            ) : (
+              <Bell className="w-3.5 h-3.5" />
+            )}
+            <span>{isTesting ? 'Sending Alert...' : 'Send Test Alert'}</span>
           </Button>
         ) : isDenied ? (
           <span className="text-xs text-[#B95750] font-medium">

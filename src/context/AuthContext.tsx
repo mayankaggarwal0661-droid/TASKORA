@@ -21,6 +21,7 @@ import {
   FirebaseConfigOptions,
   saveCustomFirebaseConfig,
   clearCustomFirebaseConfig,
+  ensureLocalPersistence,
 } from '@/features/auth/firebase-config';
 
 export interface AuthUserProfile {
@@ -70,6 +71,8 @@ interface AuthContextValue {
 }
 
 const GUEST_STORAGE_KEY = 'taskora_guest_mode';
+export const AUTH_SESSION_HINT_KEY = 'taskora_auth_session_hint';
+export const AUTH_UID_KEY = 'taskora_auth_user_uid';
 
 /**
  * Maps Firebase Auth errors to human-friendly messages
@@ -183,12 +186,14 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [user, setUser] = useState<AuthUserProfile | null>(null);
-  const [loading, setLoading] = useState(() => isFirebaseConfigured());
+  // CRITICAL: Always initialize loading to true to prevent premature redirects
+  // while Firebase restores session credentials from IndexedDB.
+  const [loading, setLoading] = useState<boolean>(true);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isGuest, setIsGuest] = useState<boolean>(false);
 
-  // Safely synchronize guest session from browser storage post-hydration
+  // Safely synchronize guest or active session hint from browser storage post-hydration
   useEffect(() => {
     try {
       const guestSaved = localStorage.getItem(GUEST_STORAGE_KEY);
@@ -214,13 +219,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isAuthenticatedCustomer = Boolean(user);
   const isVisitor = !user && !isGuest;
 
-  // 1. Authoritative Firebase Auth State Listener
+  // 1. Authoritative Firebase Auth State Listener & Session Restoration
   useEffect(() => {
-    const configured = isFirebaseConfigured();
-
-    if (!configured) {
-      return;
-    }
+    // Ensure persistence layer is primed
+    ensureLocalPersistence(auth).catch(() => {});
 
     // Process any pending redirect auth result (e.g. from popup fallback or mobile)
     if (!redirectCheckedRef.current && typeof window !== 'undefined') {
@@ -233,6 +235,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setIsGuest(false);
             try {
               localStorage.removeItem(GUEST_STORAGE_KEY);
+              localStorage.setItem(AUTH_SESSION_HINT_KEY, 'authenticated');
+              localStorage.setItem(AUTH_UID_KEY, result.user.uid);
             } catch {}
           }
         })
@@ -241,7 +245,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
     }
 
-    // onAuthStateChanged is the authoritative source of truth
+    // onAuthStateChanged is the authoritative source of truth for session status
     const unsubscribe = onAuthStateChanged(
       auth,
       (fbUser) => {
@@ -251,22 +255,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setIsGuest(false);
           try {
             localStorage.removeItem(GUEST_STORAGE_KEY);
+            localStorage.setItem(AUTH_SESSION_HINT_KEY, 'authenticated');
+            localStorage.setItem(AUTH_UID_KEY, fbUser.uid);
           } catch {}
         } else {
           setFirebaseUser(null);
           setUser(null);
-          // Check if user was explicitly exploring as guest
-          if (typeof window !== 'undefined') {
-            try {
-              const guestSaved = localStorage.getItem(GUEST_STORAGE_KEY);
-              setIsGuest(guestSaved === 'true');
-            } catch {
-              setIsGuest(false);
-            }
-          } else {
+          try {
+            localStorage.removeItem(AUTH_SESSION_HINT_KEY);
+            localStorage.removeItem(AUTH_UID_KEY);
+            const guestSaved = localStorage.getItem(GUEST_STORAGE_KEY);
+            setIsGuest(guestSaved === 'true');
+          } catch {
             setIsGuest(false);
           }
         }
+        // Session resolution is complete: unblock route guards
         setLoading(false);
       },
       (err) => {
@@ -300,14 +304,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      // If switching accounts or previously signed in, complete sign-out first
-      if (auth.currentUser) {
-        try {
-          await signOut(auth);
-          setFirebaseUser(null);
-          setUser(null);
-        } catch {}
-      }
+      // Ensure browserLocalPersistence is active before starting sign-in
+      await ensureLocalPersistence(auth);
 
       // Ensure Google account selection prompt is requested
       googleProvider.setCustomParameters({
@@ -321,6 +319,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsGuest(false);
         try {
           localStorage.removeItem(GUEST_STORAGE_KEY);
+          localStorage.setItem(AUTH_SESSION_HINT_KEY, 'authenticated');
+          localStorage.setItem(AUTH_UID_KEY, result.user.uid);
         } catch {}
         setIsSigningIn(false);
         return { success: true };
@@ -333,6 +333,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // If popup is blocked by the browser, attempt fallback to redirect flow
       if (fbErr?.code === 'auth/popup-blocked') {
         try {
+          await ensureLocalPersistence(auth);
           await signInWithRedirect(auth, googleProvider);
           return { success: true };
         } catch (redirectError: unknown) {
@@ -370,13 +371,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      if (auth.currentUser) {
-        try {
-          await signOut(auth);
-          setFirebaseUser(null);
-          setUser(null);
-        } catch {}
-      }
+      await ensureLocalPersistence(auth);
       const cred = await signInWithEmailAndPassword(auth, cleanEmail, pass);
       if (cred && cred.user) {
         setFirebaseUser(cred.user);
@@ -384,6 +379,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsGuest(false);
         try {
           localStorage.removeItem(GUEST_STORAGE_KEY);
+          localStorage.setItem(AUTH_SESSION_HINT_KEY, 'authenticated');
+          localStorage.setItem(AUTH_UID_KEY, cred.user.uid);
         } catch {}
         setIsSigningIn(false);
         return { success: true };
@@ -419,13 +416,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       try {
-        if (auth.currentUser) {
-          try {
-            await signOut(auth);
-            setFirebaseUser(null);
-            setUser(null);
-          } catch {}
-        }
+        await ensureLocalPersistence(auth);
         const cred = await createUserWithEmailAndPassword(auth, cleanEmail, pass);
         if (cred && cred.user) {
           if (displayName && displayName.trim()) {
@@ -441,6 +432,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setIsGuest(false);
           try {
             localStorage.removeItem(GUEST_STORAGE_KEY);
+            localStorage.setItem(AUTH_SESSION_HINT_KEY, 'authenticated');
+            localStorage.setItem(AUTH_UID_KEY, cred.user.uid);
           } catch {}
           setIsSigningIn(false);
           return { success: true };
@@ -496,6 +489,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsGuest(false);
       try {
         localStorage.removeItem(GUEST_STORAGE_KEY);
+        localStorage.removeItem(AUTH_SESSION_HINT_KEY);
+        localStorage.removeItem(AUTH_UID_KEY);
         localStorage.removeItem('taskora_google_session');
       } catch {}
       return { success: true };
@@ -515,6 +510,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setError(null);
     try {
       localStorage.setItem(GUEST_STORAGE_KEY, 'true');
+      localStorage.removeItem(AUTH_SESSION_HINT_KEY);
+      localStorage.removeItem(AUTH_UID_KEY);
       localStorage.removeItem('taskora_google_session');
     } catch {}
     router.push('/dashboard');

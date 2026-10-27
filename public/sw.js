@@ -18,7 +18,16 @@ const SHELL_URLS = [
 // ─── Install ────────────────────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_URLS))
+    caches.open(CACHE_NAME).then(async (cache) => {
+      // Use allSettled so if any page redirects or is unavailable, install still succeeds
+      await Promise.allSettled(
+        SHELL_URLS.map((url) =>
+          cache.add(url).catch((err) => {
+            // Non-fatal cache prefetch skip (e.g. redirect or offline)
+          })
+        )
+      );
+    })
   );
   // Auto activate new service worker in development/testing
   self.skipWaiting();

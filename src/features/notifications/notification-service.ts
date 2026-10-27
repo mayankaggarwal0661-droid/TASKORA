@@ -4,6 +4,7 @@ import {
   registerServiceWorker,
   subscribeToWebPush,
   sendTestPushNotification,
+  isWebPushSupported,
 } from './web-push-client';
 
 export class NotificationService {
@@ -109,10 +110,57 @@ export class NotificationService {
   }
 
   /**
+   * Dispatch a local test notification directly to the browser or via Service Worker.
+   * Deliberately bypasses quiet hours since this is an explicit user-initiated diagnostic test.
+   */
+  public static async sendTestLocalNotification(
+    title: string,
+    body: string
+  ): Promise<boolean> {
+    if (typeof window === 'undefined' || !('Notification' in window)) return false;
+    if (Notification.permission !== 'granted') return false;
+
+    // 1. Preferred method: ServiceWorkerRegistration.showNotification (works on desktop & Android)
+    if ('serviceWorker' in navigator) {
+      try {
+        let reg: ServiceWorkerRegistration | null | undefined = await navigator.serviceWorker.getRegistration();
+        if (!reg?.active) {
+          reg = await registerServiceWorker();
+        }
+        if (reg) {
+          await reg.showNotification(title, {
+            body,
+            icon: '/icon-192.png',
+            badge: '/icon-192.png',
+            tag: 'taskora-test-notification',
+            data: { url: '/notifications' },
+          });
+          return true;
+        }
+      } catch (swErr) {
+        console.warn('[NotificationService] SW showNotification error:', swErr);
+      }
+    }
+
+    // 2. Secondary method: standard window Notification constructor (desktop browsers)
+    try {
+      new Notification(title, {
+        body,
+        icon: '/icon-192.png',
+        tag: 'taskora-test-notification',
+      });
+      return true;
+    } catch (winErr) {
+      console.warn('[NotificationService] Window Notification constructor error:', winErr);
+      return false;
+    }
+  }
+
+  /**
    * Trigger test notification (dispatches via Web Push server if subscribed, with fallback to local)
    */
   public static async triggerTestAsync(
-    settings: NotificationSettings
+    _settings?: NotificationSettings
   ): Promise<{ success: boolean; message: string }> {
     if (typeof window === 'undefined' || !('Notification' in window)) {
       return {
@@ -125,46 +173,53 @@ export class NotificationService {
       return {
         success: false,
         message:
-          'Notification permission is blocked in your browser settings. Please grant permissions in your address bar.',
+          'Notification permission is blocked in your browser settings. Please click the tune/lock icon in your browser address bar to allow notifications.',
       };
     }
 
     if (Notification.permission === 'default') {
       return {
         success: false,
-        message: 'Please click "Enable Notifications" first to grant permission.',
+        message: 'Please click "Enable Notifications" first to grant browser permission.',
       };
     }
 
-    // Attempt real Web Push delivery via server
-    const pushResult = await sendTestPushNotification();
-    if (pushResult.success) {
-      return {
-        success: true,
-        message: pushResult.message || 'Web Push delivered successfully to your device!',
-      };
+    // Ensure Service Worker is registered for notification capability
+    if (isWebPushSupported()) {
+      registerServiceWorker().catch(() => {});
     }
 
-    // Fallback to local notification if push send had an issue
-    const sent = this.sendBrowserNotification(
-      'Taskora — Test Notification',
-      'Local notification test active. Web push server message: ' + (pushResult.error || 'local fallback'),
-      settings,
-      'test-notification'
+    // 1. Attempt real Web Push delivery via backend server
+    try {
+      const pushResult = await sendTestPushNotification();
+      if (pushResult.success) {
+        return {
+          success: true,
+          message: pushResult.message || 'Web Push delivered successfully to your device!',
+        };
+      }
+    } catch (e) {
+      console.warn('[NotificationService] sendTestPushNotification non-fatal error:', e);
+    }
+
+    // 2. Fallback to direct local notification (bypasses quiet hours for explicit user test)
+    const localDelivered = await this.sendTestLocalNotification(
+      'Taskora — Test Alert Active',
+      'Browser notification confirmed. Your scheduled task alerts are ready.'
     );
 
-    if (sent) {
+    if (localDelivered) {
       return {
         success: true,
-        message: 'Test notification displayed locally on this device.',
-      };
-    } else {
-      return {
-        success: false,
-        message:
-          'Notification not delivered. Quiet hours might be active or browser is muting notifications.',
+        message: 'Test notification displayed successfully on this device.',
       };
     }
+
+    return {
+      success: false,
+      message:
+        'Could not display notification. Please ensure system Do Not Disturb / Focus Assist is not silencing browser alerts.',
+    };
   }
 
   public static triggerTest(settings: NotificationSettings): { success: boolean; message: string } {
@@ -176,8 +231,10 @@ export class NotificationService {
     }
 
     // Trigger async push in background
-    this.triggerTestAsync(settings);
-    return { success: true, message: 'Dispatched test push notification request to server.' };
+    this.triggerTestAsync(settings).catch((e) => {
+      console.error('[NotificationService] triggerTest error:', e);
+    });
+    return { success: true, message: 'Dispatched test push notification request.' };
   }
 
   /**
