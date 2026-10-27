@@ -1,0 +1,391 @@
+@import "tailwindcss";
+
+@theme {
+  /* ─── Warm Neutral Surfaces ─────────────────────────────────────── */
+  --color-bg-base:              #F7F4EE;
+  --color-surface-primary:      #FFFFFF;
+  --color-surface-secondary:    #F0EBE2;
+  --color-surface-elevated:     #FBF9F5;
+
+  /* ─── Typography ─────────────────────────────────────────────────── */
+  --color-text-primary:         #403B34;
+  --color-text-secondary:       #756E64;
+  --color-text-muted:           #968D81;
+
+  /* ─── Borders ────────────────────────────────────────────────────── */
+  --color-border-default:       #E7E0D5;
+  --color-border-strong:        #D9D0C3;
+
+  /* ─── Primary Accent — Sage Green ────────────────────────────────── */
+  --color-accent-primary:       #718368;
+  --color-accent-primary-hover: #5F7157;
+  --color-accent-soft:          #EAF0E5;
+
+  /* ─── Secondary Accent — Clay / Sienna ──────────────────────────── */
+  --color-accent-secondary:     #B88762;
+  --color-accent-secondary-soft:#F4E9DE;
+
+  /* ─── Semantic Status ────────────────────────────────────────────── */
+  --color-success:              #557B5C;
+  --color-warning:              #A97535;
+  --color-urgent:               #B95750;
+  --color-success-soft:         #E8F0E9;
+  --color-warning-soft:         #F4EBD9;
+  --color-urgent-soft:          #F5E6E5;
+
+  /* ─── Font Families ──────────────────────────────────────────────── */
+  --font-sans: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: var(--font-geist-mono), monospace;
+}
+
+:root {
+  --bg-base:              #F7F4EE;
+  --surface-primary:      #FFFFFF;
+  --surface-secondary:    #F0EBE2;
+  --surface-elevated:     #FBF9F5;
+  --text-primary:         #403B34;
+  --text-secondary:       #756E64;
+  --text-muted:           #968D81;
+  --border-default:       #E7E0D5;
+  --border-strong:        #D9D0C3;
+  --accent:               #718368;
+  --accent-hover:         #5F7157;
+  --accent-soft:          #EAF0E5;
+  --accent-border:        rgba(113, 131, 104, 0.35);
+  --accent-text:          #557B5C;
+  --accent-ring:          rgba(113, 131, 104, 0.4);
+  --accent-glow:          rgba(113, 131, 104, 0.15);
+  --accent-rgb:           113, 131, 104;
+  --accent2:              #B88762;
+  --accent2-soft:         #F4E9DE;
+  --success:              #557B5C;
+  --warning:              #A97535;
+  --urgent:               #B95750;
+}
+
+/* ─── Taskora 7 Canonical Themes ──────────────────────────────────── */
+
+/* 1. Sage Green */
+[data-theme="sage-green"] {
+  --accent:               #718368;
+  --accent-hover:         #5F7157;
+  --accent-soft:          #EAF0E5;
+  --accent-border:        rgba(113, 131, 104, 0.35);
+  --accent-text:          #557B5C;
+  --accent-ring:          rgba(113, 131, 104, 0.4);
+  --accent-glow:          rgba(113, 131, 104, 0.15);
+  --accent-rgb:           113, 131, 104;
+  --color-accent-primary: #718368;
+  --color-accent-primary-hover: #5F7157;
+  --color-accent-soft:    #EAF0E5;
+}
+
+/* 2. Sienna Clay */
+[data-theme="sienna-clay"] {
+  --accent:               #B88762;
+  --accent-hover:         #9E6E4B;
+  --accent-soft:          #F7EFE8;
+  --accent-border:        rgba(184, 135, 98, 0.35);
+  --accent-text:          #96623E;
+  --accent-ring:          rgba(184, 135, 98, 0.4);
+  --accent-glow:          rgba(184, 135, 98, 0.15);
+  --accent-rgb:           184, 135, 98;
+  --color-accent-primary: #B88762;
+  --color-accent-primary-hover: #9E6E4B;
+  --color-accent-soft:    #F7EFE8;
+}
+
+/* 3. Sunset Amber */
+[data-theme="sunset-amber"] {
+  --accent:               #C99A3C;
+  --accent-hover:         #B08329;
+  --accent-soft:          #FBF5E6;
+  --accent-border:        rgba(201, 154, 60, 0.35);
+  --accent-text:          #A87A22;
+  --accent-ring:          rgba(201, 154, 60, 0.4);
+  --accent-glow:          rgba(201, 154, 60, 0.15);
+  --accent-rgb:           201, 154, 60;
+  --color-accent-primary: #C99A3C;
+  --color-accent-primary-hover: #B08329;
+  --color-accent-soft:    #FBF5E6;
+}
+
+/* 4. Forest Olive */
+[data-theme="forest-olive"] {
+  --accent:               #557B5C;
+  --accent-hover:         #44654A;
+  --accent-soft:          #E8F0E9;
+  --accent-border:        rgba(85, 123, 92, 0.35);
+  --accent-text:          #416347;
+  --accent-ring:          rgba(85, 123, 92, 0.4);
+  --accent-glow:          rgba(85, 123, 92, 0.15);
+  --accent-rgb:           85, 123, 92;
+  --color-accent-primary: #557B5C;
+  --color-accent-primary-hover: #44654A;
+  --color-accent-soft:    #E8F0E9;
+}
+
+/* 5. Terracotta Rose */
+[data-theme="terracotta-rose"] {
+  --accent:               #B95F60;
+  --accent-hover:         #A14F50;
+  --accent-soft:          #F9ECEC;
+  --accent-border:        rgba(185, 95, 96, 0.35);
+  --accent-text:          #9E4647;
+  --accent-ring:          rgba(185, 95, 96, 0.4);
+  --accent-glow:          rgba(185, 95, 96, 0.15);
+  --accent-rgb:           185, 95, 96;
+  --color-accent-primary: #B95F60;
+  --color-accent-primary-hover: #A14F50;
+  --color-accent-soft:    #F9ECEC;
+}
+
+/* 6. Muted Violet */
+[data-theme="muted-violet"] {
+  --accent:               #8B5CF6;
+  --accent-hover:         #7544E6;
+  --accent-soft:          #F2EEFE;
+  --accent-border:        rgba(139, 92, 246, 0.35);
+  --accent-text:          #733FE6;
+  --accent-ring:          rgba(139, 92, 246, 0.4);
+  --accent-glow:          rgba(139, 92, 246, 0.15);
+  --accent-rgb:           139, 92, 246;
+  --color-accent-primary: #8B5CF6;
+  --color-accent-primary-hover: #7544E6;
+  --color-accent-soft:    #F2EEFE;
+}
+
+/* 7. Warm Neutral (Exact Original Preserved) */
+[data-theme="warm-neutral"] {
+  --accent:               #718368;
+  --accent-hover:         #5F7157;
+  --accent-soft:          #EAF0E5;
+  --accent-border:        rgba(113, 131, 104, 0.35);
+  --accent-text:          #557B5C;
+  --accent-ring:          rgba(113, 131, 104, 0.4);
+  --accent-glow:          rgba(113, 131, 104, 0.15);
+  --accent-rgb:           113, 131, 104;
+  --color-accent-primary: #718368;
+  --color-accent-primary-hover: #5F7157;
+  --color-accent-soft:    #EAF0E5;
+}
+
+/* ─── Dynamic Utility Overrides for Active Accent Themes ─────────── */
+[data-theme] .bg-\[\#718368\] {
+  background-color: var(--accent) !important;
+}
+
+[data-theme] .hover\:bg-\[\#5F7157\]:hover,
+[data-theme] .hover\:bg-\[\#557B5C\]:hover {
+  background-color: var(--accent-hover) !important;
+}
+
+[data-theme] .active\:bg-\[\#4E5E47\]:active {
+  background-color: var(--accent-hover) !important;
+}
+
+[data-theme] .text-\[\#718368\] {
+  color: var(--accent) !important;
+}
+
+[data-theme] .border-\[\#718368\] {
+  border-color: var(--accent) !important;
+}
+
+[data-theme] .bg-\[\#EAF0E5\] {
+  background-color: var(--accent-soft) !important;
+}
+
+[data-theme] .bg-\[\#D9E8D3\],
+[data-theme] .bg-\[\#DDE8D7\] {
+  background-color: rgba(var(--accent-rgb), 0.22) !important;
+}
+
+[data-theme] .border-\[\#718368\]\/20,
+[data-theme] .border-\[\#718368\]\/25,
+[data-theme] .border-\[\#718368\]\/30,
+[data-theme] .border-\[\#718368\]\/40,
+[data-theme] .border-\[\#718368\]\/50 {
+  border-color: var(--accent-border) !important;
+}
+
+[data-theme] .hover\:border-\[\#718368\]\/40:hover,
+[data-theme] .hover\:border-\[\#718368\]\/50:hover,
+[data-theme] .hover\:border-\[\#718368\]:hover {
+  border-color: var(--accent-border) !important;
+}
+
+[data-theme] .focus\:border-\[\#718368\]:focus,
+[data-theme] .focus\:border-\[\#718368\]:focus-visible {
+  border-color: var(--accent) !important;
+}
+
+[data-theme] .focus\:ring-\[\#718368\]\/30:focus,
+[data-theme] .focus\:ring-\[\#718368\]\/40:focus,
+[data-theme] .focus-visible\:ring-\[\#718368\]\/40:focus-visible {
+  outline-color: var(--accent) !important;
+  box-shadow: 0 0 0 2px var(--accent-ring) !important;
+}
+
+/* Text inside soft accent containers */
+[data-theme] .bg-\[\#EAF0E5\] .text-\[\#557B5C\],
+[data-theme] [data-theme-accent-text] {
+  color: var(--accent-text) !important;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: #F7F4EE;
+  color: #403B34;
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Warm Neutral Scrollbar ─────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F0EBE2;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D9D0C3;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent, #718368);
+}
+
+/* ─── Focus Rings ───────────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--accent, #718368);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ─── Selection ─────────────────────────────────────────────────────── */
+::selection {
+  background: var(--accent-ring, rgba(113, 131, 104, 0.2));
+  color: #403B34;
+}
+
+/* ─── Premium Warm Glassmorphism System ────────────────────────────── */
+
+/* 1. Base Glass Surface (for headers, floating navs, toolbars) */
+.glass-surface,
+.glass-panel {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(231, 224, 213, 0.85);
+  box-shadow: 0 4px 20px -4px rgba(64, 59, 52, 0.05);
+}
+
+/* 2. Elevated Warm Glass (for sidebar, popovers, dropdowns, floating panels) */
+.glass-surface-elevated,
+.glass-panel-elevated {
+  background: rgba(251, 249, 245, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(217, 208, 195, 0.75);
+  box-shadow: 0 12px 36px -8px rgba(64, 59, 52, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.6) inset;
+}
+
+/* 3. Modal Glass Surface (for dialogs, command palette, task modal) */
+.glass-modal {
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(231, 224, 213, 0.9);
+  box-shadow: 0 24px 64px -16px rgba(64, 59, 52, 0.16), 0 0 0 1px rgba(255, 255, 255, 0.8) inset;
+}
+
+/* 4. Glass Backdrop (for modal overlay backgrounds) */
+.glass-backdrop {
+  background: rgba(64, 59, 52, 0.28);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* 5. Glass Toast (for notifications & toasts) */
+.glass-toast {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(231, 224, 213, 0.85);
+  box-shadow: 0 12px 32px -8px rgba(64, 59, 52, 0.12), 0 0 0 1px rgba(255, 255, 255, 0.7) inset;
+}
+
+/* 6. Accent-Tinted Glass Pill / Tag */
+.glass-accent-subtle {
+  background: rgba(var(--accent-rgb), 0.12);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--accent-border);
+  box-shadow: 0 2px 8px -2px var(--accent-glow);
+}
+
+/* 7. Fallback when backdrop-filter is not supported */
+@supports not (backdrop-filter: blur(1px)) {
+  .glass-surface,
+  .glass-panel,
+  .glass-surface-elevated,
+  .glass-panel-elevated,
+  .glass-modal,
+  .glass-toast {
+    background: #FFFFFF !important;
+  }
+  .glass-backdrop {
+    background: rgba(64, 59, 52, 0.6) !important;
+  }
+}
+
+/* ─── Accent Glow (dynamically adapts to active theme) ─────────────── */
+.sage-glow,
+.accent-glow {
+  box-shadow: 0 0 20px -4px var(--accent-glow, rgba(113, 131, 104, 0.25));
+}
+
+/* ─── Landing-page aurora (warm ivory) ──────────────────────────────── */
+.aurora-warm {
+  background: radial-gradient(ellipse 80% 60% at 30% 20%, rgba(234, 240, 229, 0.7) 0%, transparent 60%),
+              radial-gradient(ellipse 60% 50% at 70% 70%, rgba(244, 233, 222, 0.5) 0%, transparent 55%),
+              #F7F4EE;
+}
+
+/* ─── Card base ─────────────────────────────────────────────────────── */
+.card {
+  background: #FFFFFF;
+  border: 1px solid #E7E0D5;
+  border-radius: 16px;
+}
+
+.card-secondary {
+  background: #F0EBE2;
+  border: 1px solid #E7E0D5;
+  border-radius: 16px;
+}
+
+/* ─── Motion accessibility ─────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
