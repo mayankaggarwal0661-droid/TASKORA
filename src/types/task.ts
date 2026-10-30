@@ -8,6 +8,15 @@ export type RecurrenceRule = 'none' | 'daily' | 'weekdays' | 'weekly' | 'monthly
 
 export type AdvanceReminder = 'at_time' | '5m' | '15m' | '30m' | '1h' | '1d';
 
+export type ReminderStatus =
+  | 'scheduled'
+  | 'processing'
+  | 'sent'
+  | 'failed'
+  | 'missed'
+  | 'cancelled'
+  | 'snoozed';
+
 export interface SubTask {
   id: string;
   title: string;
@@ -26,6 +35,7 @@ export interface Task {
   timezone: string;
   recurrence: RecurrenceRule;
   reminder: AdvanceReminder;
+  reminderStatus?: ReminderStatus;
   subtasks: SubTask[];
   completedAt?: string;
   createdAt: string;

@@ -3,18 +3,19 @@
  *
  * Durable database-backed / file-backed persistent storage for subscriptions,
  * scheduled reminders, and delivery logs.
- * Supports multi-device registration, idempotency, bounded retry backoff,
- * and automatic cleanup of expired/unregistered subscriptions.
+ * Supports multi-device registration, atomic claim locking (idempotent cron),
+ * bounded retry backoff, missed-reminder policy, and automatic cleanup of expired subscriptions.
  */
 
 import fs from 'fs';
 import path from 'path';
+import { RecurrenceRule, ReminderStatus } from '@/types/task';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface PushSubscriptionRecord {
   id: string;                    // Unique device subscription ID (e.g. sub-hash)
-  userId: string;                // Stable user account ID
+  userId: string;                // Authenticated Firebase UID or guest session ID
   endpoint: string;
   keys: {
     p256dh: string;
@@ -40,14 +41,18 @@ export interface ReminderRecord {
   reminderAt: string;            // ISO UTC timestamp when to send the notification
   timezone: string;              // IANA timezone, e.g. "America/New_York"
   leadOffset: string;            // 'at_time' | '5m' | '15m' | '30m' | '1h' | '1d'
-  recurrence?: 'none' | 'daily' | 'weekdays' | 'weekly' | 'monthly';
-  status: 'pending' | 'sent' | 'failed' | 'cancelled' | 'snoozed';
+  recurrence?: RecurrenceRule;
+  status: ReminderStatus;
   attempts: number;
+  claimedAt?: string;            // ISO UTC timestamp for atomic processing lease
   nextRetryAt?: string;          // ISO timestamp for bounded exponential backoff
   lastAttemptAt?: string;
   lastError?: string;
-  deliveredAt?: string;
+  deliveredAt?: string;          // When accepted by push service
+  deviceDeliveredAt?: string;    // When confirmed received by client Service Worker
   taskUrl: string;               // Deep link to the task: `/tasks?taskId=...`
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface DeliveryLogRecord {
@@ -105,9 +110,9 @@ export function readStore(): TaskoraServerStore {
     }
 
     if (memoryCache) {
-      if (!memoryCache.subscriptions) memoryCache.subscriptions = [];
-      if (!memoryCache.reminders) memoryCache.reminders = [];
-      if (!memoryCache.deliveryLog) memoryCache.deliveryLog = [];
+      if (!Array.isArray(memoryCache.subscriptions)) memoryCache.subscriptions = [];
+      if (!Array.isArray(memoryCache.reminders)) memoryCache.reminders = [];
+      if (!Array.isArray(memoryCache.deliveryLog)) memoryCache.deliveryLog = [];
       return memoryCache;
     }
   } catch (e) {
@@ -123,7 +128,7 @@ export function writeStore(store: TaskoraServerStore): void {
   try {
     ensureDataDir();
     // Atomic write via temp file
-    const tempFile = `${STORE_FILE}.${Date.now()}.tmp`;
+    const tempFile = `${STORE_FILE}.${Date.now()}.${Math.random().toString(36).slice(2, 6)}.tmp`;
     fs.writeFileSync(tempFile, JSON.stringify(store, null, 2), 'utf-8');
     fs.renameSync(tempFile, STORE_FILE);
   } catch {
@@ -134,6 +139,13 @@ export function writeStore(store: TaskoraServerStore): void {
       console.error('[Taskora Store] writeStore error:', writeErr);
     }
   }
+}
+
+/**
+ * Resets memory cache (useful in tests)
+ */
+export function resetMemoryCache(): void {
+  memoryCache = null;
 }
 
 // ─── Subscription Management (Multi-Device) ──────────────────────────────────
@@ -236,32 +248,131 @@ export function cleanupExpiredSubscriptions(endpoints: string[]): void {
 
 export function upsertReminder(reminder: ReminderRecord): void {
   const store = readStore();
+  const now = new Date().toISOString();
+  const recordWithDates: ReminderRecord = {
+    ...reminder,
+    createdAt: reminder.createdAt || now,
+    updatedAt: now,
+  };
+
   const idx = store.reminders.findIndex((r) => r.id === reminder.id);
   if (idx >= 0) {
-    store.reminders[idx] = reminder;
+    store.reminders[idx] = {
+      ...store.reminders[idx],
+      ...recordWithDates,
+      createdAt: store.reminders[idx].createdAt || recordWithDates.createdAt,
+    };
   } else {
-    store.reminders.push(reminder);
+    store.reminders.push(recordWithDates);
   }
   writeStore(store);
 }
 
+/**
+ * Cancel any pending, scheduled, processing, or snoozed reminders for a given task.
+ */
 export function cancelRemindersForTask(taskId: string): void {
   const store = readStore();
   let changed = false;
+  const now = new Date().toISOString();
+
   store.reminders
-    .filter((r) => r.taskId === taskId && (r.status === 'pending' || r.status === 'snoozed'))
+    .filter(
+      (r) =>
+        r.taskId === taskId &&
+        (r.status === 'scheduled' ||
+          (r.status as string) === 'pending' ||
+          r.status === 'processing' ||
+          r.status === 'snoozed')
+    )
     .forEach((r) => {
       r.status = 'cancelled';
+      r.updatedAt = now;
       changed = true;
     });
+
   if (changed) writeStore(store);
 }
 
+/**
+ * Atomic Claim Mechanism:
+ * Finds reminders due up to cutoffIso, applies the missed-reminder policy,
+ * and atomically claims active due reminders by transitioning them to 'processing'
+ * with a claimedAt lease.
+ *
+ * Prevents concurrent scheduler executions from dispatching duplicate notifications!
+ */
+export function claimRemindersForProcessing(
+  cutoffIso: string,
+  leaseDurationMs = 120_000
+): ReminderRecord[] {
+  const store = readStore();
+  const nowMs = Date.now();
+  const nowIso = new Date(nowMs).toISOString();
+  const staleLeaseCutoffMs = nowMs - leaseDurationMs;
+
+  const claimedReminders: ReminderRecord[] = [];
+  let changed = false;
+
+  for (const r of store.reminders) {
+    // 1. Check if reminder has expired / missed:
+    // If the task's due date has already passed by more than 10 minutes,
+    // or the reminder trigger is older than 24 hours, mark as 'missed'
+    const dueAtMs = new Date(r.dueAt).getTime();
+    const reminderAtMs = new Date(r.reminderAt).getTime();
+
+    const isPendingOrClaimed =
+      r.status === 'scheduled' ||
+      (r.status as string) === 'pending' ||
+      r.status === 'processing';
+
+    if (isPendingOrClaimed && (nowMs > dueAtMs + 10 * 60 * 1000 || nowMs > reminderAtMs + 24 * 60 * 60 * 1000)) {
+      r.status = 'missed';
+      r.lastError = 'Reminder expired: task due time passed before delivery.';
+      r.updatedAt = nowIso;
+      changed = true;
+      continue;
+    }
+
+    // 2. Identify candidates eligible for processing:
+    // a) New scheduled reminders due up to cutoffIso whose retry time has arrived
+    const isReadyToTrigger =
+      (r.status === 'scheduled' || (r.status as string) === 'pending') &&
+      r.reminderAt <= cutoffIso &&
+      (!r.nextRetryAt || r.nextRetryAt <= nowIso);
+
+    // b) Stale processing lease recovery: crashed/timed-out run
+    const isLeaseExpired =
+      r.status === 'processing' &&
+      r.claimedAt &&
+      new Date(r.claimedAt).getTime() < staleLeaseCutoffMs &&
+      r.attempts < 3;
+
+    if (isReadyToTrigger || isLeaseExpired) {
+      r.status = 'processing';
+      r.claimedAt = nowIso;
+      r.updatedAt = nowIso;
+      r.attempts = (r.attempts || 0) + 1;
+      claimedReminders.push({ ...r });
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    writeStore(store);
+  }
+
+  return claimedReminders;
+}
+
+/**
+ * Backward-compatible helper to inspect pending reminders up to a cutoff
+ */
 export function getPendingRemindersUpTo(cutoffIso: string): ReminderRecord[] {
   const nowIso = new Date().toISOString();
   return readStore().reminders.filter(
     (r) =>
-      r.status === 'pending' &&
+      (r.status === 'scheduled' || (r.status as string) === 'pending') &&
       r.reminderAt <= cutoffIso &&
       (!r.nextRetryAt || r.nextRetryAt <= nowIso)
   );
@@ -271,38 +382,90 @@ export function getRemindersForUser(userId: string): ReminderRecord[] {
   return readStore().reminders.filter((r) => r.userId === userId);
 }
 
-export function markReminderSent(id: string): void {
+export function getReminderByTaskId(taskId: string): ReminderRecord | null {
+  const store = readStore();
+  const matches = store.reminders.filter((r) => r.taskId === taskId);
+  if (matches.length === 0) return null;
+  // Return most recent record
+  return matches[matches.length - 1];
+}
+
+/**
+ * Mark reminder as successfully accepted by the push service (Web Push / FCM)
+ */
+export function markReminderSent(id: string, _details?: { deviceCount?: number }): void {
   const store = readStore();
   const r = store.reminders.find((r) => r.id === id);
   if (r) {
     r.status = 'sent';
     r.deliveredAt = new Date().toISOString();
     r.nextRetryAt = undefined;
+    r.updatedAt = new Date().toISOString();
     writeStore(store);
   }
 }
 
 /**
- * Handle delivery failure with bounded exponential backoff.
- * Retry delays: Attempt 1 = 60s, Attempt 2 = 300s (5m), Attempt 3 = 900s (15m).
- * After 3 failed attempts, marks as 'failed'.
+ * Record confirmation from the device / Service Worker that the notification
+ * was physically received and displayed.
  */
-export function markReminderFailed(id: string, error: string): void {
+export function recordDeviceAck(reminderId: string, subscriptionId?: string): boolean {
+  const store = readStore();
+  const r = store.reminders.find((r) => r.id === reminderId);
+  if (r) {
+    r.deviceDeliveredAt = new Date().toISOString();
+    r.updatedAt = new Date().toISOString();
+    if (subscriptionId) {
+      appendDeliveryLog({
+        reminderId,
+        subscriptionId,
+        attemptedAt: new Date().toISOString(),
+        success: true,
+      });
+    }
+    writeStore(store);
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Handle delivery failure with bounded exponential backoff.
+ * Retry delays: Attempt 1 = 60s, Attempt 2 = 300s (5m).
+ * After 3 failed attempts, marks permanently as 'failed'.
+ */
+export function markReminderFailed(id: string, error: string, isPermanent = false): void {
   const store = readStore();
   const r = store.reminders.find((r) => r.id === id);
   if (r) {
-    r.attempts = (r.attempts || 0) + 1;
     r.lastAttemptAt = new Date().toISOString();
     r.lastError = error;
+    r.updatedAt = new Date().toISOString();
 
-    if (r.attempts >= 3) {
+    if (isPermanent || (r.attempts || 0) >= 3) {
       r.status = 'failed';
       r.nextRetryAt = undefined;
     } else {
-      // Exponential backoff
+      // Revert to scheduled for retry with bounded exponential backoff
+      r.status = 'scheduled';
       const backoffSeconds = r.attempts === 1 ? 60 : 300;
       r.nextRetryAt = new Date(Date.now() + backoffSeconds * 1000).toISOString();
     }
+    writeStore(store);
+  }
+}
+
+/**
+ * Mark reminder as missed when task due time has already passed
+ */
+export function markReminderMissed(id: string, reason: string): void {
+  const store = readStore();
+  const r = store.reminders.find((r) => r.id === id);
+  if (r) {
+    r.status = 'missed';
+    r.lastError = reason;
+    r.nextRetryAt = undefined;
+    r.updatedAt = new Date().toISOString();
     writeStore(store);
   }
 }
@@ -313,7 +476,11 @@ export function markReminderFailed(id: string, error: string): void {
 export function snoozeReminder(taskId: string, snoozeMinutes = 10): ReminderRecord | null {
   const store = readStore();
   const existing = store.reminders.find(
-    (r) => r.taskId === taskId && (r.status === 'sent' || r.status === 'pending')
+    (r) =>
+      r.taskId === taskId &&
+      (r.status === 'sent' ||
+        r.status === 'scheduled' ||
+        (r.status as string) === 'pending')
   );
 
   if (!existing) return null;
@@ -325,12 +492,16 @@ export function snoozeReminder(taskId: string, snoozeMinutes = 10): ReminderReco
   const snoozed: ReminderRecord = {
     ...existing,
     id: newId,
-    status: 'pending',
+    status: 'scheduled',
     reminderAt: newReminderAt,
     attempts: 0,
+    claimedAt: undefined,
     nextRetryAt: undefined,
     lastError: undefined,
     deliveredAt: undefined,
+    deviceDeliveredAt: undefined,
+    createdAt: new Date(now).toISOString(),
+    updatedAt: new Date(now).toISOString(),
   };
 
   store.reminders.push(snoozed);

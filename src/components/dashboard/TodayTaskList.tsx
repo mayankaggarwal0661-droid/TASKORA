@@ -14,7 +14,8 @@ import {
   Plus,
   Calendar,
   ChevronRight,
-  ListTodo
+  ListTodo,
+  Bell
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -184,6 +185,12 @@ export function TodayTaskList() {
                           <span className={`flex items-center gap-1 ${isOverdue ? 'text-[#B95750] font-semibold' : ''}`}>
                             <Clock className="w-3 h-3" />
                             {task.dueTime}
+                          </span>
+                        )}
+                        {task.reminder && (task.reminder as string) !== 'none' && (
+                          <span className="flex items-center gap-1 text-[#A97535] font-medium" title={`Reminder: ${task.reminder} before`}>
+                            <Bell className="w-3 h-3" />
+                            {task.reminder}
                           </span>
                         )}
                         {task.subtasks.length > 0 && (

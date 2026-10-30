@@ -18,6 +18,7 @@ import {
   Columns3,
   Calendar,
   Clock,
+  Bell,
   Trash2,
   Edit2,
   Repeat,
@@ -628,6 +629,17 @@ function TaskSectionGroup({
                         <span className="flex items-center gap-1 text-[#718368] font-medium capitalize">
                           <Repeat className="w-3.5 h-3.5" />
                           {task.recurrence}
+                        </span>
+                      )}
+                      {task.reminder && (task.reminder as string) !== 'none' && (
+                        <span className="flex items-center gap-1 text-[#A97535] font-medium" title={`Reminder: ${task.reminder} before`}>
+                          <Bell className="w-3.5 h-3.5" />
+                          <span>{task.reminder}</span>
+                          {task.reminderStatus && (
+                            <span className="text-[10px] px-1 py-0.2 rounded bg-[#F4EBD9] text-[#A97535] border border-[#A97535]/30">
+                              {task.reminderStatus}
+                            </span>
+                          )}
                         </span>
                       )}
                     </div>

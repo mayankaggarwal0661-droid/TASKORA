@@ -27,7 +27,9 @@ export async function GET(req: NextRequest) {
 
   const userSubscriptions = resolvedUserId ? getSubscriptionsByUser(resolvedUserId) : [];
   const userReminders = resolvedUserId ? getRemindersForUser(resolvedUserId) : [];
-  const pendingCount = userReminders.filter((r) => r.status === 'pending').length;
+  const pendingCount = userReminders.filter(
+    (r) => r.status === 'scheduled' || (r.status as string) === 'pending'
+  ).length;
   const deliveryLogs = resolvedUserId ? getDeliveryLogsForUser(resolvedUserId) : [];
   const lastDelivery = deliveryLogs.length > 0 ? deliveryLogs[deliveryLogs.length - 1] : null;
 
@@ -53,5 +55,19 @@ export async function GET(req: NextRequest) {
           error: lastDelivery.error,
         }
       : null,
+    reminders: userReminders.slice(-20).reverse().map((r) => ({
+      id: r.id,
+      taskId: r.taskId,
+      taskTitle: r.taskTitle,
+      dueDate: r.dueDate,
+      dueTime: r.dueTime,
+      reminderAt: r.reminderAt,
+      status: r.status,
+      leadOffset: r.leadOffset,
+      attempts: r.attempts,
+      deliveredAt: r.deliveredAt,
+      deviceDeliveredAt: r.deviceDeliveredAt,
+      lastError: r.lastError,
+    })),
   });
 }

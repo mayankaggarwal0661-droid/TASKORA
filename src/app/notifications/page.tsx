@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useTaskora } from '@/context/TaskoraContext';
+import { useAuth } from '@/context/AuthContext';
 import { LeadTimeOption } from '@/types/notification';
 import { Button } from '@/components/ui/Button';
 import { PwaInstallPrompt } from '@/components/pwa/PwaInstallPrompt';
@@ -43,6 +44,9 @@ export default function NotificationSettingsPage() {
     addToast,
   } = useTaskora();
 
+  const { user, isGuest } = useAuth();
+  const authUid = user?.uid || (isGuest ? 'guest' : null);
+
   const [isPushActive, setIsPushActive] = useState<boolean>(false);
   const [pushSupported, setPushSupported] = useState<boolean>(true);
   const [currentEndpointMask, setCurrentEndpointMask] = useState<string>('');
@@ -55,6 +59,22 @@ export default function NotificationSettingsPage() {
       lastUsedAt: string;
       isActive: boolean;
       endpointMask: string;
+    }>
+  >([]);
+  const [serverReminders, setServerReminders] = useState<
+    Array<{
+      id: string;
+      taskId: string;
+      taskTitle: string;
+      dueDate: string;
+      dueTime?: string;
+      reminderAt: string;
+      status: string;
+      leadOffset: string;
+      attempts: number;
+      deliveredAt?: string;
+      deviceDeliveredAt?: string;
+      lastError?: string;
     }>
   >([]);
   const [serverStatus, setServerStatus] = useState<{
@@ -83,12 +103,12 @@ export default function NotificationSettingsPage() {
       }
 
       // Fetch all registered devices for user
-      const devRes = await fetchUserDevices();
+      const devRes = await fetchUserDevices(authUid);
       setDevices(devRes.devices);
 
       // Fetch server status
       try {
-        const userId = getOrCreateUserId();
+        const userId = authUid || getOrCreateUserId();
         const res = await fetch(`/api/push/status?userId=${encodeURIComponent(userId)}`);
         if (res.ok) {
           const data = await res.json();
@@ -96,11 +116,14 @@ export default function NotificationSettingsPage() {
             pendingRemindersCount: data.pendingRemindersCount || 0,
             lastDelivery: data.lastDelivery,
           });
+          if (Array.isArray(data.reminders)) {
+            setServerReminders(data.reminders);
+          }
         }
       } catch {}
     }
     setIsRefreshingDevices(false);
-  }, []);
+  }, [authUid]);
 
   useEffect(() => {
     loadDeviceData();
@@ -136,7 +159,7 @@ export default function NotificationSettingsPage() {
   };
 
   const handleRemoveDevice = async (deviceId: string, deviceName: string) => {
-    const success = await removeUserDevice(deviceId);
+    const success = await removeUserDevice(deviceId, authUid);
     if (success) {
       addToast({
         title: 'Device Removed',
@@ -441,6 +464,105 @@ export default function NotificationSettingsPage() {
                 </div>
               );
             })}
+          </div>
+        )}
+      </div>
+
+      {/* Scheduled Task Reminders Queue Card */}
+      <div className="p-6 rounded-2xl bg-white border border-[#E7E0D5] shadow-sm space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-[#E7E0D5]">
+          <div>
+            <h3 className="text-base font-bold text-[#403B34] tracking-tight flex items-center gap-2">
+              <Clock className="w-4 h-4 text-[#718368]" />
+              Scheduled Task Reminders Queue
+            </h3>
+            <p className="text-xs text-[#756E64] mt-0.5">
+              Live status of advance notifications managed by Taskora&apos;s background scheduler
+            </p>
+          </div>
+
+          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-[#EAF0E5] text-[#557B5C] border border-[#718368]/30">
+            {serverReminders.length} Total
+          </span>
+        </div>
+
+        {serverReminders.length === 0 ? (
+          <div className="p-6 text-center rounded-xl bg-[#FBF9F5] border border-dashed border-[#E7E0D5]">
+            <Bell className="w-8 h-8 text-[#968D81] mx-auto mb-2 opacity-50" />
+            <p className="text-xs font-semibold text-[#403B34]">No Reminders Currently Queued</p>
+            <p className="text-[11px] text-[#756E64] mt-1 max-w-md mx-auto">
+              When you schedule a task with an advance reminder (e.g. 15m before), it will appear
+              here with its real-time scheduler state.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-[#E7E0D5] text-[11px] font-semibold text-[#968D81] uppercase tracking-wider">
+                  <th className="pb-2">Task</th>
+                  <th className="pb-2">Due Date & Time</th>
+                  <th className="pb-2">Reminder Lead</th>
+                  <th className="pb-2">Trigger Time</th>
+                  <th className="pb-2">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#E7E0D5]/60">
+                {serverReminders.map((rem) => {
+                  const statusColors: Record<string, string> = {
+                    scheduled: 'bg-[#D2E4D4] text-[#557B5C] border-[#557B5C]/30',
+                    processing: 'bg-[#F4EBD9] text-[#A97535] border-[#A97535]/30',
+                    sent: 'bg-[#E8F0E9] text-[#2E6F40] border-[#2E6F40]/30',
+                    failed: 'bg-[#F0D0CE] text-[#B95750] border-[#B95750]/30',
+                    missed: 'bg-[#F0EBE2] text-[#756E64] border-[#D9D0C3]',
+                    cancelled: 'bg-neutral-100 text-neutral-500 border-neutral-300',
+                    snoozed: 'bg-[#EAF0E5] text-[#557B5C] border-[#718368]/30',
+                  };
+
+                  const statusLabels: Record<string, string> = {
+                    scheduled: 'Scheduled',
+                    processing: 'Processing',
+                    sent: 'Sent to Push Service',
+                    failed: 'Delivery Failed',
+                    missed: 'Missed (Task Expired)',
+                    cancelled: 'Cancelled',
+                    snoozed: 'Snoozed',
+                  };
+
+                  return (
+                    <tr key={rem.id} className="hover:bg-[#FBF9F5]/80 transition-colors">
+                      <td className="py-2.5 pr-3 font-semibold text-[#403B34] max-w-[200px] truncate">
+                        <Link href={`/tasks?taskId=${rem.taskId}`} className="hover:text-[#718368] hover:underline">
+                          {rem.taskTitle}
+                        </Link>
+                      </td>
+                      <td className="py-2.5 pr-3 text-[#756E64]">
+                        {rem.dueDate} {rem.dueTime || ''}
+                      </td>
+                      <td className="py-2.5 pr-3 text-[#756E64]">
+                        {rem.leadOffset} before
+                      </td>
+                      <td className="py-2.5 pr-3 text-[#756E64] font-mono text-[11px]">
+                        {new Date(rem.reminderAt).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </td>
+                      <td className="py-2.5">
+                        <span
+                          className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                            statusColors[rem.status] || 'bg-neutral-100 text-neutral-600'
+                          }`}
+                        >
+                          {statusLabels[rem.status] || rem.status}
+                          {rem.deviceDeliveredAt && ' • Confirmed'}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

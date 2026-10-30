@@ -6,6 +6,11 @@ import {
   sendTestPushNotification,
   isWebPushSupported,
 } from './web-push-client';
+import {
+  calculateUtcTimestamp,
+  LEAD_OFFSET_MS,
+  isWithinQuietHours,
+} from '@/lib/schedule-calculator';
 
 export class NotificationService {
   /**
@@ -28,12 +33,12 @@ export class NotificationService {
   /**
    * Request browser permission, register SW, and subscribe to Web Push
    */
-  public static async requestPermission(): Promise<NotificationPermission> {
+  public static async requestPermission(authUid?: string | null): Promise<NotificationPermission> {
     if (typeof window === 'undefined' || !('Notification' in window)) {
       return 'denied';
     }
     try {
-      const result = await subscribeToWebPush();
+      const result = await subscribeToWebPush(authUid);
       return result.permission || Notification.permission;
     } catch {
       return Notification.permission || 'denied';
@@ -45,22 +50,13 @@ export class NotificationService {
    */
   public static isQuietHours(settings: NotificationSettings): boolean {
     if (!settings.quietHoursEnabled) return false;
-
-    const now = new Date();
-    const currentMins = now.getHours() * 60 + now.getMinutes();
-
-    const [startH, startM] = (settings.quietHoursStart || '22:00').split(':').map(Number);
-    const [endH, endM] = (settings.quietHoursEnd || '07:00').split(':').map(Number);
-
-    const startTotal = (startH || 22) * 60 + (startM || 0);
-    const endTotal = (endH || 7) * 60 + (endM || 0);
-
-    if (startTotal <= endTotal) {
-      return currentMins >= startTotal && currentMins < endTotal;
-    } else {
-      // Overnight (e.g. 22:00 to 07:00)
-      return currentMins >= startTotal || currentMins < endTotal;
-    }
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+    return isWithinQuietHours(
+      Date.now(),
+      tz,
+      settings.quietHoursStart || '22:00',
+      settings.quietHoursEnd || '07:00'
+    );
   }
 
   /**
@@ -78,7 +74,7 @@ export class NotificationService {
     if (this.isQuietHours(settings)) return false;
 
     try {
-      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      if ('serviceWorker' in navigator) {
         navigator.serviceWorker.ready
           .then((reg) => {
             reg.showNotification(title, {
@@ -90,11 +86,13 @@ export class NotificationService {
             });
           })
           .catch(() => {
-            new Notification(title, {
-              body,
-              icon: '/icon-192.png',
-              tag: tag || 'taskora-reminder',
-            });
+            try {
+              new Notification(title, {
+                body,
+                icon: '/icon-192.png',
+                tag: tag || 'taskora-reminder',
+              });
+            } catch {}
           });
       } else {
         new Notification(title, {
@@ -120,10 +118,11 @@ export class NotificationService {
     if (typeof window === 'undefined' || !('Notification' in window)) return false;
     if (Notification.permission !== 'granted') return false;
 
-    // 1. Preferred method: ServiceWorkerRegistration.showNotification (works on desktop & Android)
+    // 1. Preferred method: ServiceWorkerRegistration.showNotification
     if ('serviceWorker' in navigator) {
       try {
-        let reg: ServiceWorkerRegistration | null | undefined = await navigator.serviceWorker.getRegistration();
+        let reg: ServiceWorkerRegistration | null | undefined =
+          await navigator.serviceWorker.getRegistration();
         if (!reg?.active) {
           reg = await registerServiceWorker();
         }
@@ -142,7 +141,7 @@ export class NotificationService {
       }
     }
 
-    // 2. Secondary method: standard window Notification constructor (desktop browsers)
+    // 2. Secondary method: standard window Notification constructor
     try {
       new Notification(title, {
         body,
@@ -151,16 +150,17 @@ export class NotificationService {
       });
       return true;
     } catch (winErr) {
-      console.warn('[NotificationService] Window Notification constructor error:', winErr);
+      console.warn('[NotificationService] Window Notification error:', winErr);
       return false;
     }
   }
 
   /**
-   * Trigger test notification (dispatches via Web Push server if subscribed, with fallback to local)
+   * Trigger test notification with strict timeout and fallback
    */
   public static async triggerTestAsync(
-    _settings?: NotificationSettings
+    _settings?: NotificationSettings,
+    authUid?: string | null
   ): Promise<{ success: boolean; message: string }> {
     if (typeof window === 'undefined' || !('Notification' in window)) {
       return {
@@ -177,21 +177,30 @@ export class NotificationService {
       };
     }
 
+    // If permission not yet granted, request it now
     if (Notification.permission === 'default') {
-      return {
-        success: false,
-        message: 'Please click "Enable Notifications" first to grant browser permission.',
-      };
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') {
+        return {
+          success: false,
+          message:
+            perm === 'denied'
+              ? 'Notification permission was denied. Please allow notifications from your address bar.'
+              : 'Notification permission prompt was dismissed.',
+        };
+      }
     }
 
-    // Ensure Service Worker is registered for notification capability
+    // Ensure Service Worker is registered
     if (isWebPushSupported()) {
-      registerServiceWorker().catch(() => {});
+      try {
+        await registerServiceWorker();
+      } catch {}
     }
 
     // 1. Attempt real Web Push delivery via backend server
     try {
-      const pushResult = await sendTestPushNotification();
+      const pushResult = await sendTestPushNotification(authUid);
       if (pushResult.success) {
         return {
           success: true,
@@ -199,10 +208,10 @@ export class NotificationService {
         };
       }
     } catch (e) {
-      console.warn('[NotificationService] sendTestPushNotification non-fatal error:', e);
+      console.warn('[NotificationService] sendTestPushNotification error:', e);
     }
 
-    // 2. Fallback to direct local notification (bypasses quiet hours for explicit user test)
+    // 2. Fallback to direct local notification
     const localDelivered = await this.sendTestLocalNotification(
       'Taskora — Test Alert Active',
       'Browser notification confirmed. Your scheduled task alerts are ready.'
@@ -222,7 +231,10 @@ export class NotificationService {
     };
   }
 
-  public static triggerTest(settings: NotificationSettings): { success: boolean; message: string } {
+  public static triggerTest(
+    settings: NotificationSettings,
+    authUid?: string | null
+  ): { success: boolean; message: string } {
     if (typeof window === 'undefined' || !('Notification' in window)) {
       return { success: false, message: 'Browser notifications are not supported.' };
     }
@@ -230,62 +242,52 @@ export class NotificationService {
       return { success: false, message: 'Please grant notification permissions first.' };
     }
 
-    // Trigger async push in background
-    this.triggerTestAsync(settings).catch((e) => {
+    this.triggerTestAsync(settings, authUid).catch((e) => {
       console.error('[NotificationService] triggerTest error:', e);
     });
     return { success: true, message: 'Dispatched test push notification request.' };
   }
 
   /**
-   * Check tasks for in-app or open-tab reminder checks
+   * Check tasks for in-app or open-tab reminder checks, respecting task timezone
    */
   public static checkDueReminders(
     tasks: Task[],
     settings: NotificationSettings,
     notifiedTaskIds: Set<string>
   ): { dueTasks: Task[]; newlyNotifiedIds: string[] } {
-    const now = Date.now();
+    const nowMs = Date.now();
     const dueTasks: Task[] = [];
     const newlyNotifiedIds: string[] = [];
 
     for (const task of tasks) {
       if (task.status === 'completed' || !task.dueDate) continue;
 
-      const timeStr = task.dueTime || '09:00';
-      const [year, month, day] = task.dueDate.split('-').map(Number);
-      const [hours, minutes] = timeStr.split(':').map(Number);
-
-      const targetTime = new Date(year, (month || 1) - 1, day || 1, hours || 0, minutes || 0, 0).getTime();
-
-      let offsetMs = 0;
-      switch (task.reminder || settings.defaultLeadTime) {
-        case '5m':
-          offsetMs = 5 * 60 * 1000;
-          break;
-        case '15m':
-          offsetMs = 15 * 60 * 1000;
-          break;
-        case '30m':
-          offsetMs = 30 * 60 * 1000;
-          break;
-        case '1h':
-          offsetMs = 60 * 60 * 1000;
-          break;
-        case '1d':
-          offsetMs = 24 * 60 * 60 * 1000;
-          break;
-        default:
-          offsetMs = 0;
-          break;
+      let targetTimeMs: number;
+      try {
+        targetTimeMs = calculateUtcTimestamp(
+          task.dueDate,
+          task.dueTime || '09:00',
+          task.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+        );
+      } catch {
+        continue;
       }
 
-      const reminderTriggerTime = targetTime - offsetMs;
-      const diffMs = reminderTriggerTime - now;
+      const offsetKey = task.reminder || settings.defaultLeadTime || '15m';
+      const offsetMs = LEAD_OFFSET_MS[offsetKey] ?? 15 * 60 * 1000;
 
-      // In-tab alert triggers within -30s to +60s window
+      const reminderTriggerTime = targetTimeMs - offsetMs;
+      const diffMs = reminderTriggerTime - nowMs;
+
+      // In-tab alert triggers within -30s to +60s window (or immediately if past trigger but task upcoming)
+      const isUpcoming = targetTimeMs > nowMs;
       const notifyKey = `${task.id}-${task.dueDate}-${task.dueTime}-${offsetMs}`;
-      if (diffMs <= 60000 && diffMs >= -60000 && !notifiedTaskIds.has(notifyKey)) {
+
+      if (
+        !notifiedTaskIds.has(notifyKey) &&
+        ((diffMs <= 60000 && diffMs >= -60000) || (diffMs < -60000 && isUpcoming && !task.reminderStatus))
+      ) {
         dueTasks.push(task);
         newlyNotifiedIds.push(notifyKey);
       }

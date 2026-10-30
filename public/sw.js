@@ -133,9 +133,23 @@ self.addEventListener('push', (event) => {
     ],
   };
 
-  event.waitUntil(
-    self.registration.showNotification(payload.title, notificationOptions)
-  );
+  const showPromise = self.registration.showNotification(payload.title, notificationOptions);
+
+  // Send delivery confirmation back to server if reminderId or taskId present
+  const ackPromise = (async () => {
+    try {
+      const reminderId = payload.reminderId || (payload.taskId ? `rem-${payload.taskId}` : null);
+      if (reminderId) {
+        await fetch('/api/reminders/ack', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reminderId }),
+        }).catch(() => {});
+      }
+    } catch {}
+  })();
+
+  event.waitUntil(Promise.all([showPromise, ackPromise]));
 });
 
 // ─── Notification Click Handling ────────────────────────────────────────────

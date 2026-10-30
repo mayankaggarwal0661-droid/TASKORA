@@ -6,14 +6,30 @@
 import { Task } from '@/types/task';
 
 const USER_ID_STORAGE_KEY = 'taskora_user_account_id';
+const AUTH_UID_KEY = 'taskora_auth_user_uid';
 
 /**
- * Get or initialize a stable user account ID stored in localStorage.
- * This links multiple devices (e.g. laptop and phone) to the same account.
+ * Get or initialize a stable user account ID.
+ * If user is authenticated with Firebase (authUid provided or in storage),
+ * that Firebase UID is used to link all user devices and tasks together.
  */
-export function getOrCreateUserId(): string {
+export function getEffectiveUserId(authUid?: string | null): string {
   if (typeof window === 'undefined') return 'server_user';
+
+  if (authUid && authUid !== 'guest') {
+    try {
+      localStorage.setItem(AUTH_UID_KEY, authUid);
+      localStorage.setItem(USER_ID_STORAGE_KEY, authUid);
+    } catch {}
+    return authUid;
+  }
+
   try {
+    const savedAuthUid = localStorage.getItem(AUTH_UID_KEY);
+    if (savedAuthUid && savedAuthUid !== 'guest') {
+      return savedAuthUid;
+    }
+
     let id = localStorage.getItem(USER_ID_STORAGE_KEY);
     if (!id) {
       id = `usr-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
@@ -23,6 +39,10 @@ export function getOrCreateUserId(): string {
   } catch {
     return 'fallback_user';
   }
+}
+
+export function getOrCreateUserId(): string {
+  return getEffectiveUserId();
 }
 
 /**
@@ -94,15 +114,13 @@ export function getClientDeviceType(): 'desktop' | 'mobile' | 'tablet' {
  * Helper to safely get an active service worker registration with a strict timeout.
  * Prevents navigator.serviceWorker.ready from hanging indefinitely.
  */
-async function getReadyServiceWorker(timeoutMs = 2500): Promise<ServiceWorkerRegistration | null> {
+async function getReadyServiceWorker(timeoutMs = 3000): Promise<ServiceWorkerRegistration | null> {
   if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return null;
 
   try {
-    // Check if there is already an active registration
     const existing = await navigator.serviceWorker.getRegistration();
     if (existing?.active) return existing;
 
-    // Race ready with timeout so callers never hang
     const readyPromise = navigator.serviceWorker.ready;
     const timeoutPromise = new Promise<null>((resolve) =>
       setTimeout(() => resolve(null), timeoutMs)
@@ -150,7 +168,7 @@ export async function getCurrentPushSubscription(): Promise<PushSubscription | n
  * Full flow: Request permission, subscribe to PushManager with VAPID key,
  * and register with Taskora backend store.
  */
-export async function subscribeToWebPush(): Promise<{
+export async function subscribeToWebPush(authUid?: string | null): Promise<{
   success: boolean;
   subscription?: PushSubscription;
   error?: string;
@@ -204,7 +222,7 @@ export async function subscribeToWebPush(): Promise<{
     }
 
     // 4. Send subscription to server
-    const userId = getOrCreateUserId();
+    const userId = getEffectiveUserId(authUid);
     const res = await fetch('/api/push/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -237,14 +255,12 @@ export async function unsubscribeFromWebPush(): Promise<{ success: boolean; erro
   try {
     const sub = await getCurrentPushSubscription();
     if (sub) {
-      // Notify server
       await fetch('/api/push/unsubscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ endpoint: sub.endpoint }),
       }).catch(() => {});
 
-      // Unsubscribe from browser PushManager
       await sub.unsubscribe();
     }
     return { success: true };
@@ -254,33 +270,35 @@ export async function unsubscribeFromWebPush(): Promise<{ success: boolean; erro
 }
 
 /**
- * Trigger immediate test Web Push notification
+ * Trigger immediate test Web Push notification with strict timeout and fallback
  */
-export async function sendTestPushNotification(): Promise<{
+export async function sendTestPushNotification(authUid?: string | null): Promise<{
   success: boolean;
   message?: string;
   error?: string;
 }> {
   try {
     const sub = await getCurrentPushSubscription();
-    const userId = getOrCreateUserId();
+    const userId = getEffectiveUserId(authUid);
 
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 6000);
+    const timer = setTimeout(() => controller.abort(), 7000);
 
     const res = await fetch('/api/push/send-test', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         endpoint: sub?.endpoint,
+        subscription: sub ? sub.toJSON() : undefined,
         userId,
+        deviceName: getClientDeviceName(),
       }),
       signal: controller.signal,
     }).finally(() => {
       clearTimeout(timer);
     });
 
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       return { success: false, error: data.error || 'Test notification failed.' };
     }
@@ -289,7 +307,7 @@ export async function sendTestPushNotification(): Promise<{
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     if (message.includes('abort') || message.includes('signal')) {
-      return { success: false, error: 'Push request timed out after 6 seconds.' };
+      return { success: false, error: 'Push request timed out after 7 seconds.' };
     }
     return { success: false, error: message };
   }
@@ -298,7 +316,7 @@ export async function sendTestPushNotification(): Promise<{
 /**
  * Fetch registered devices for the current user
  */
-export async function fetchUserDevices(): Promise<{
+export async function fetchUserDevices(authUid?: string | null): Promise<{
   devices: Array<{
     id: string;
     deviceName: string;
@@ -311,7 +329,7 @@ export async function fetchUserDevices(): Promise<{
   activeCount: number;
 }> {
   try {
-    const userId = getOrCreateUserId();
+    const userId = getEffectiveUserId(authUid);
     const res = await fetch(`/api/push/devices?userId=${encodeURIComponent(userId)}`);
     if (!res.ok) return { devices: [], activeCount: 0 };
     const data = await res.json();
@@ -324,9 +342,9 @@ export async function fetchUserDevices(): Promise<{
 /**
  * Remove/deactivate a specific registered device
  */
-export async function removeUserDevice(deviceId: string): Promise<boolean> {
+export async function removeUserDevice(deviceId: string, authUid?: string | null): Promise<boolean> {
   try {
-    const userId = getOrCreateUserId();
+    const userId = getEffectiveUserId(authUid);
     const res = await fetch('/api/push/devices', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
@@ -343,10 +361,17 @@ export async function removeUserDevice(deviceId: string): Promise<boolean> {
  */
 export async function syncTaskReminderToServer(
   task: Task,
+  authUid?: string | null,
   action: 'schedule' | 'cancel' = 'schedule'
-): Promise<boolean> {
+): Promise<{
+  success: boolean;
+  skipped?: boolean;
+  reason?: string;
+  immediate?: boolean;
+  message?: string;
+}> {
   try {
-    const userId = getOrCreateUserId();
+    const userId = getEffectiveUserId(authUid);
     const res = await fetch('/api/reminders/schedule', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -363,10 +388,23 @@ export async function syncTaskReminderToServer(
         userId,
       }),
     });
-    return res.ok;
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      console.warn(`[WebPush] Sync reminder failed for task ${task.id}:`, data.error);
+      return { success: false, reason: data.error };
+    }
+
+    return {
+      success: data.success ?? true,
+      skipped: data.skipped,
+      reason: data.reason,
+      immediate: data.immediate,
+      message: data.message,
+    };
   } catch (err) {
     console.warn(`[WebPush] Failed to sync reminder for task ${task.id}:`, err);
-    return false;
+    return { success: false, reason: String(err) };
   }
 }
 

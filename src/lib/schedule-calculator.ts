@@ -11,49 +11,99 @@ export const LEAD_OFFSET_MS: Record<AdvanceReminder, number> = {
 };
 
 /**
+ * Validates that an IANA timezone identifier is valid.
+ */
+export function isValidTimeZone(timeZone: string): boolean {
+  if (!timeZone || typeof timeZone !== 'string') return false;
+  try {
+    Intl.DateTimeFormat(undefined, { timeZone });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Accurately convert local date, time, and IANA timezone to UTC epoch milliseconds,
- * automatically accounting for Daylight Saving Time (DST).
+ * automatically accounting for Daylight Saving Time (DST) with iterative refinement.
  */
 export function calculateUtcTimestamp(
   dateStr: string,
   timeStr = '09:00',
   timeZone = 'UTC'
 ): number {
-  const [year, month, day] = dateStr.split('-').map(Number);
-  const [hours, minutes] = (timeStr || '09:00').split(':').map(Number);
+  if (!dateStr || typeof dateStr !== 'string') {
+    throw new Error('Invalid date: dateStr is required in YYYY-MM-DD format.');
+  }
 
-  // Approximate UTC date
-  const approx = new Date(Date.UTC(year, (month || 1) - 1, day || 1, hours || 0, minutes || 0, 0));
+  const dateMatch = dateStr.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!dateMatch) {
+    throw new Error(`Invalid date format "${dateStr}". Expected YYYY-MM-DD.`);
+  }
+
+  const year = Number(dateMatch[1]);
+  const month = Number(dateMatch[2]);
+  const day = Number(dateMatch[3]);
+
+  if (month < 1 || month > 12 || day < 1 || day > 31) {
+    throw new Error(`Invalid calendar date values in "${dateStr}".`);
+  }
+
+  const cleanTime = (timeStr && timeStr.trim().length > 0) ? timeStr.trim() : '09:00';
+  const timeMatch = cleanTime.match(/^([01]?\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/);
+  const hours = timeMatch ? Number(timeMatch[1]) : 9;
+  const minutes = timeMatch ? Number(timeMatch[2]) : 0;
+  const seconds = timeMatch && timeMatch[3] ? Number(timeMatch[3]) : 0;
+
+  const resolvedTz = isValidTimeZone(timeZone) ? timeZone : 'UTC';
+
+  // Initial approximation treating target local time as UTC
+  const approx = new Date(Date.UTC(year, month - 1, day, hours, minutes, seconds));
 
   try {
     const formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: timeZone || 'UTC',
+      timeZone: resolvedTz,
       year: 'numeric',
       month: 'numeric',
       day: 'numeric',
       hour: 'numeric',
       minute: 'numeric',
       second: 'numeric',
-      hour12: false,
+      hourCycle: 'h23',
     });
 
-    const parts = Object.fromEntries(
-      formatter.formatToParts(approx).map((p) => [p.type, p.value])
-    );
+    const getTzParts = (d: Date) => {
+      const parts = Object.fromEntries(
+        formatter.formatToParts(d).map((p) => [p.type, p.value])
+      );
+      return {
+        y: Number(parts.year),
+        m: Number(parts.month),
+        d: Number(parts.day),
+        h: Number(parts.hour),
+        min: Number(parts.minute),
+        s: Number(parts.second),
+      };
+    };
 
-    const tzYear = Number(parts.year);
-    const tzMonth = Number(parts.month);
-    const tzDay = Number(parts.day);
-    let tzHour = Number(parts.hour);
-    if (tzHour === 24) tzHour = 0;
-    const tzMin = Number(parts.minute);
+    const p1 = getTzParts(approx);
+    const tzTime1 = Date.UTC(p1.y, p1.m - 1, p1.d, p1.h, p1.min, p1.s);
+    const offsetDiff1 = approx.getTime() - tzTime1;
 
-    const tzTime = Date.UTC(tzYear, tzMonth - 1, tzDay, tzHour, tzMin, 0);
-    const offsetDiff = approx.getTime() - tzTime;
+    let candidateUtcMs = approx.getTime() + offsetDiff1;
 
-    return approx.getTime() + offsetDiff;
+    // Refinement pass for DST boundary shifts
+    const p2 = getTzParts(new Date(candidateUtcMs));
+    const tzTime2 = Date.UTC(p2.y, p2.m - 1, p2.d, p2.h, p2.min, p2.s);
+    const residualDiff = approx.getTime() - tzTime2;
+
+    if (residualDiff !== 0) {
+      candidateUtcMs += residualDiff;
+    }
+
+    return candidateUtcMs;
   } catch (err) {
-    console.warn(`[ScheduleCalculator] Invalid timezone "${timeZone}", falling back to UTC`, err);
+    console.warn(`[ScheduleCalculator] Timezone conversion failed for "${resolvedTz}", falling back to UTC`, err);
     return approx.getTime();
   }
 }
@@ -75,6 +125,82 @@ export function calculateReminderTriggerTime(
   const reminderAtMs = dueAtMs - resolvedOffset;
 
   return { dueAtMs, reminderAtMs, leadOffsetMs: resolvedOffset };
+}
+
+export interface ReminderTimingEvaluation {
+  dueAtMs: number;
+  reminderAtMs: number;
+  leadOffsetMs: number;
+  isPastDue: boolean;
+  isPastTrigger: boolean;
+  effectiveReminderAtMs: number;
+  policyApplied: 'standard' | 'immediate_past_trigger' | 'rejected_past_due';
+  message: string;
+}
+
+/**
+ * Evaluates reminder timing against the documented past-trigger policy.
+ *
+ * Policy:
+ * 1. If task due time is already in the past (dueAt <= now), reject with 'rejected_past_due'.
+ * 2. If task is upcoming (dueAt > now) but the offset reminder time has already passed (reminderAt <= now),
+ *    schedule for immediate delivery (effectiveReminderAt = now) so the user gets an alert for their upcoming priority.
+ * 3. If reminderAt > now, standard scheduled reminder.
+ */
+export function evaluateReminderTiming(
+  dateStr: string,
+  timeStr: string | undefined,
+  timeZone: string | undefined,
+  leadOffset: AdvanceReminder | string,
+  nowMs = Date.now()
+): ReminderTimingEvaluation {
+  const { dueAtMs, reminderAtMs, leadOffsetMs } = calculateReminderTriggerTime(
+    dateStr,
+    timeStr,
+    timeZone,
+    leadOffset
+  );
+
+  const isPastDue = dueAtMs <= nowMs;
+  const isPastTrigger = dueAtMs > nowMs && reminderAtMs <= nowMs;
+
+  if (isPastDue) {
+    return {
+      dueAtMs,
+      reminderAtMs,
+      leadOffsetMs,
+      isPastDue: true,
+      isPastTrigger: false,
+      effectiveReminderAtMs: reminderAtMs,
+      policyApplied: 'rejected_past_due',
+      message: 'Task due date/time has already passed.',
+    };
+  }
+
+  if (isPastTrigger) {
+    return {
+      dueAtMs,
+      reminderAtMs,
+      leadOffsetMs,
+      isPastDue: false,
+      isPastTrigger: true,
+      // Trigger immediately for upcoming tasks whose lead window has already elapsed
+      effectiveReminderAtMs: nowMs,
+      policyApplied: 'immediate_past_trigger',
+      message: 'Reminder lead time has passed; scheduled for immediate delivery.',
+    };
+  }
+
+  return {
+    dueAtMs,
+    reminderAtMs,
+    leadOffsetMs,
+    isPastDue: false,
+    isPastTrigger: false,
+    effectiveReminderAtMs: reminderAtMs,
+    policyApplied: 'standard',
+    message: 'Reminder scheduled successfully.',
+  };
 }
 
 /**
@@ -141,15 +267,14 @@ export function isWithinQuietHours(
       timeZone: timeZone || 'UTC',
       hour: 'numeric',
       minute: 'numeric',
-      hour12: false,
+      hourCycle: 'h23',
     });
 
     const parts = Object.fromEntries(
       formatter.formatToParts(new Date(timestampMs)).map((p) => [p.type, p.value])
     );
 
-    let hour = Number(parts.hour);
-    if (hour === 24) hour = 0;
+    const hour = Number(parts.hour);
     const minute = Number(parts.minute);
     const currentMins = hour * 60 + minute;
 

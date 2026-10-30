@@ -332,14 +332,22 @@ export function TaskoraProvider({ children }: { children: React.ReactNode }) {
     };
     setTasks(prev => [newTask, ...prev]);
 
-    // Durable scheduling: Sync reminder to backend store only for authenticated customers
-    if (!isGuest && newTask.dueDate && newTask.reminder && (newTask.reminder as string) !== 'none') {
-      syncTaskReminderToServer(newTask, 'schedule');
+    // Durable scheduling: Sync reminder to backend store
+    if (newTask.dueDate && newTask.reminder && (newTask.reminder as string) !== 'none') {
+      syncTaskReminderToServer(newTask, authUid, 'schedule').then((res) => {
+        if (res?.immediate) {
+          addToast({
+            title: 'Upcoming Task Due Soon',
+            message: `"${newTask.title}" is due soon. Immediate reminder active.`,
+            type: 'info',
+          });
+        }
+      });
     }
 
     addToast({ title: 'Task Created', message: newTask.title, type: 'success' });
     soundService.playClick();
-  }, [isGuest, tasks, openGuestLock, addToast]);
+  }, [isGuest, tasks, openGuestLock, authUid, addToast]);
 
   // Undo history for schedule adjustments
   const [scheduleHistory, setScheduleHistory] = useState<{
@@ -368,7 +376,7 @@ export function TaskoraProvider({ children }: { children: React.ReactNode }) {
         estimatedMinutes: lastItem.prevEstimatedMinutes,
       };
       // Reschedule restored reminder on server
-      syncTaskReminderToServer(restored, 'schedule');
+      syncTaskReminderToServer(restored, authUid, 'schedule');
       return restored;
     }));
 
@@ -379,7 +387,7 @@ export function TaskoraProvider({ children }: { children: React.ReactNode }) {
       type: 'info'
     });
     return true;
-  }, [scheduleHistory, addToast]);
+  }, [scheduleHistory, authUid, addToast]);
 
   const rescheduleTask = useCallback((
     taskId: string,
@@ -415,7 +423,7 @@ export function TaskoraProvider({ children }: { children: React.ReactNode }) {
     setTasks(prev => prev.map(t => (t.id === taskId ? updatedTask : t)));
 
     // Reschedule durable reminder on server
-    syncTaskReminderToServer(updatedTask, 'schedule');
+    syncTaskReminderToServer(updatedTask, authUid, 'schedule');
 
     soundService.playClick();
     addToast({
@@ -428,7 +436,7 @@ export function TaskoraProvider({ children }: { children: React.ReactNode }) {
         undoScheduleChange();
       }
     });
-  }, [tasks, undoScheduleChange, addToast]);
+  }, [tasks, undoScheduleChange, authUid, addToast]);
 
   const updateTask = useCallback((id: string, updates: Partial<Task>) => {
     setTasks(prev => prev.map(t => {
@@ -440,13 +448,13 @@ export function TaskoraProvider({ children }: { children: React.ReactNode }) {
         cancelTaskReminderOnServer(id);
       } else if (updates.dueDate || updates.dueTime || updates.reminder || updates.timezone || updates.title) {
         // Reschedule on server
-        syncTaskReminderToServer(updated, 'schedule');
+        syncTaskReminderToServer(updated, authUid, 'schedule');
       }
 
       return updated;
     }));
     addToast({ title: 'Task Updated', type: 'info' });
-  }, [addToast]);
+  }, [authUid, addToast]);
 
   const deleteTask = useCallback((id: string) => {
     setTasks(prev => prev.filter(t => t.id !== id));
@@ -481,7 +489,7 @@ export function TaskoraProvider({ children }: { children: React.ReactNode }) {
           };
 
           // Schedule reminder for the next recurring occurrence on server
-          syncTaskReminderToServer(recurringClone, 'schedule');
+          syncTaskReminderToServer(recurringClone, authUid, 'schedule');
 
           setTimeout(() => {
             setTasks(current => [recurringClone, ...current]);
@@ -507,12 +515,12 @@ export function TaskoraProvider({ children }: { children: React.ReactNode }) {
           status: 'todo' as const,
           completedAt: undefined
         };
-        syncTaskReminderToServer(uncompletedTask, 'schedule');
+        syncTaskReminderToServer(uncompletedTask, authUid, 'schedule');
 
         return uncompletedTask;
       }
     }));
-  }, [addToast]);
+  }, [authUid, addToast]);
 
   const toggleSubtask = useCallback((taskId: string, subtaskId: string) => {
     setTasks(prev => prev.map(t => {
@@ -612,7 +620,7 @@ export function TaskoraProvider({ children }: { children: React.ReactNode }) {
   }, [addToast]);
 
   const requestNotificationPermission = useCallback(async () => {
-    const result = await subscribeToWebPush();
+    const result = await subscribeToWebPush(authUid);
     const perm = result.permission || NotificationService.getPermission();
     setNotificationSettings(prev => ({
       ...prev,
@@ -628,10 +636,10 @@ export function TaskoraProvider({ children }: { children: React.ReactNode }) {
       });
       soundService.playTaskComplete(0.2);
 
-      // Reconcile and schedule any existing pending tasks with reminders
+      // Reconcile and schedule all active tasks with reminders on server
       tasks.forEach((task) => {
-        if (task.status !== 'completed' && task.dueDate && task.reminder) {
-          syncTaskReminderToServer(task, 'schedule');
+        if (task.status !== 'completed' && task.dueDate && task.reminder && (task.reminder as string) !== 'none') {
+          syncTaskReminderToServer(task, authUid, 'schedule');
         }
       });
     } else if (perm === 'granted') {
@@ -648,11 +656,19 @@ export function TaskoraProvider({ children }: { children: React.ReactNode }) {
       });
     }
     return perm;
-  }, [tasks, addToast]);
+  }, [tasks, authUid, addToast]);
 
   const sendTestNotification = useCallback(async () => {
     try {
-      const res = await NotificationService.triggerTestAsync(notificationSettings);
+      const timeoutPromise = new Promise<{ success: boolean; message: string }>((_, reject) =>
+        setTimeout(() => reject(new Error('Push request timed out after 8 seconds.')), 8000)
+      );
+
+      const res = await Promise.race([
+        NotificationService.triggerTestAsync(notificationSettings, authUid),
+        timeoutPromise,
+      ]);
+
       if (res.success) {
         addToast({ title: 'Test Alert Sent', message: res.message, type: 'success' });
         if (notificationSettings.soundAlerts && notificationSettings.soundId !== 'silent') {
@@ -671,7 +687,7 @@ export function TaskoraProvider({ children }: { children: React.ReactNode }) {
       addToast({ title: 'Test Alert Failed', message: msg, type: 'error' });
       return { success: false, message: msg };
     }
-  }, [notificationSettings, addToast]);
+  }, [notificationSettings, authUid, addToast]);
 
   // --- PROFILE ACTIONS ---
   const updateProfile = useCallback((updates: Partial<UserProfile>) => {
