@@ -12,6 +12,7 @@ import { TaskModal } from '@/components/tasks/TaskModal';
 import { ToastContainer } from '@/components/ui/ToastContainer';
 import { GuestLockModal } from '@/components/auth/GuestLockModal';
 import { GuestTaskImportModal } from '@/components/auth/GuestTaskImportModal';
+import { AvatarCustomizerModal } from '@/components/avatar/AvatarCustomizerModal';
 import { PageTransition } from '@/components/layout/PageTransition';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -207,6 +208,7 @@ function ShellContent({ children }: { children: React.ReactNode }) {
       <ToastContainer />
       <GuestLockModal />
       <GuestTaskImportModal />
+      <AvatarCustomizerModal />
     </div>
   );
 }

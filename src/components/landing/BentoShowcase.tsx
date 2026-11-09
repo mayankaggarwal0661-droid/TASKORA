@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { TiltCard } from '@/components/ui/TiltCard';
+import BellToggle from '@/components/ui/BellToggle';
 import { soundService } from '@/features/audio/sound-service';
 import {
   Bell,
@@ -13,7 +14,10 @@ import {
   Sparkles,
   Command,
   CheckCircle2,
-  Lock
+  Lock,
+  Timer,
+  Flame,
+  Layers
 } from 'lucide-react';
 
 export function BentoShowcase() {
@@ -30,28 +34,28 @@ export function BentoShowcase() {
   };
 
   return (
-    <section id="bento" className="py-20 max-w-6xl mx-auto px-4 sm:px-6 relative z-10">
+    <section id="features" className="py-10 sm:py-14 max-w-6xl mx-auto px-4 sm:px-6 relative z-10 scroll-mt-24">
       {/* Section Header */}
-      <div className="text-center max-w-3xl mx-auto mb-14">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#EAF0E5] border border-[#718368]/30 text-[#557B5C] text-xs font-semibold mb-4">
+      <div className="text-center max-w-2xl mx-auto mb-8 sm:mb-10">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#EAF0E5] border border-[#718368]/30 text-[#557B5C] text-xs font-semibold mb-3 shadow-2xs">
           <Sparkles className="w-3.5 h-3.5 text-[#718368]" />
-          <span>Interactive Architecture & Features</span>
+          <span>Complete Ecosystem</span>
         </div>
-        <h2 className="text-3xl sm:text-5xl font-black text-[#403B34] tracking-tight leading-tight">
-          Engineered for Pure Flow.
+        <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#403B34] tracking-tight leading-snug">
+          Engineered for flow. Zero noise.
         </h2>
-        <p className="text-base sm:text-lg text-[#756E64] mt-4 leading-relaxed">
+        <p className="text-xs sm:text-sm text-[#756E64] mt-2 leading-relaxed">
           Every micro-interaction, sound wave, and notification pipeline is crafted to eliminate cognitive drag and amplify high-leverage execution.
         </p>
       </div>
 
-      {/* Bento Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Bento 1: Configurable Advance Reminders (Spans 2 cols) */}
-        <TiltCard className="p-7 md:col-span-2 flex flex-col justify-between relative overflow-hidden group bg-white border border-[#E7E0D5] shadow-sm">
-          {/* Subtle Decorative SVG Clock Dial Reticle */}
-          <div className="absolute -right-12 -bottom-12 opacity-15 group-hover:opacity-25 transition-opacity pointer-events-none">
-            <svg width="240" height="240" viewBox="0 0 200 200" fill="none">
+      {/* Compact Bento Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
+        {/* Bento 1: Proactive Advance Notifications (Spans 2 cols on md+) */}
+        <TiltCard className="p-6 md:col-span-2 flex flex-col justify-between relative overflow-hidden group bg-white border border-[#E7E0D5] shadow-sm">
+          {/* Subtle Decorative Clock Reticle */}
+          <div className="absolute -right-10 -bottom-10 opacity-15 group-hover:opacity-25 transition-opacity pointer-events-none">
+            <svg width="200" height="200" viewBox="0 0 200 200" fill="none">
               <circle cx="100" cy="100" r="90" stroke="#718368" strokeWidth="1.5" strokeDasharray="3 6" />
               <circle cx="100" cy="100" r="60" stroke="#B88762" strokeWidth="1" />
               <line x1="100" y1="10" x2="100" y2="30" stroke="#718368" strokeWidth="2" />
@@ -62,66 +66,80 @@ export function BentoShowcase() {
           </div>
 
           <div>
-            <div className="flex items-start justify-between mb-4">
-              <div className="w-12 h-12 rounded-2xl bg-[#EAF0E5] border border-[#718368]/30 text-[#718368] flex items-center justify-center shadow-sm">
-                <Bell className="w-6 h-6 text-[#718368]" />
+            <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
+              <div className="w-10 h-10 rounded-xl bg-[#EAF0E5] border border-[#718368]/30 text-[#718368] flex items-center justify-center shadow-2xs">
+                <Bell className="w-5 h-5 text-[#718368]" />
               </div>
-              <span className="text-xs font-bold text-[#557B5C] bg-[#EAF0E5] border border-[#718368]/30 px-3 py-1 rounded-full font-mono">
-                5m • 15m • 30m • 1h
-              </span>
+              <BellToggle
+                offLabel="Notify 15m prior"
+                onLabel="15m lead active"
+                size="sm"
+                defaultPressed={true}
+                count={2}
+                badge={true}
+                waves={true}
+                color="#557B5C"
+                background="#EAF0E5"
+                onColor="#ffffff"
+                onBackground="#718368"
+                badgeColor="#B88762"
+                onChange={() => {
+                  soundService.playClick();
+                }}
+              />
             </div>
 
-            <h3 className="text-xl sm:text-2xl font-bold text-[#403B34] tracking-tight">
+            <h3 className="text-lg sm:text-xl font-bold text-[#403B34] tracking-tight">
               Proactive Advance Notifications
             </h3>
-            <p className="text-xs sm:text-sm text-[#756E64] mt-2.5 leading-relaxed max-w-xl">
+            <p className="text-xs sm:text-sm text-[#756E64] mt-1.5 leading-relaxed max-w-xl">
               Don&apos;t get notified when a deadline has already arrived. Taskora calculates precise lead offsets against ISO timestamps and dispatches background alerts through an active Service Worker with scheduled quiet hours.
             </p>
           </div>
 
-          <div className="mt-8 pt-6 border-t border-[#E7E0D5] flex flex-wrap items-center justify-between gap-3 text-xs text-[#756E64]">
-            <div className="flex items-center gap-2 font-mono">
-              <span className="px-2.5 py-1 rounded-lg bg-[#FBF9F5] border border-[#E7E0D5] text-[#756E64]">at_time</span>
-              <span className="px-2.5 py-1 rounded-lg bg-[#FBF9F5] border border-[#E7E0D5] text-[#756E64]">5m</span>
-              <span className="px-2.5 py-1 rounded-lg bg-[#EAF0E5] border border-[#718368]/40 text-[#557B5C] font-bold">15m lead</span>
-              <span className="px-2.5 py-1 rounded-lg bg-[#FBF9F5] border border-[#E7E0D5] text-[#756E64]">1h</span>
+          <div className="mt-6 pt-4 border-t border-[#E7E0D5] flex flex-wrap items-center justify-between gap-3 text-xs text-[#756E64]">
+            <div className="flex items-center gap-1.5 font-mono text-[11px]">
+              <span className="px-2 py-0.5 rounded-md bg-[#FBF9F5] border border-[#E7E0D5] text-[#756E64]">at_time</span>
+              <span className="px-2 py-0.5 rounded-md bg-[#FBF9F5] border border-[#E7E0D5] text-[#756E64]">5m</span>
+              <span className="px-2 py-0.5 rounded-md bg-[#EAF0E5] border border-[#718368]/40 text-[#557B5C] font-bold">15m lead</span>
+              <span className="px-2 py-0.5 rounded-md bg-[#FBF9F5] border border-[#E7E0D5] text-[#756E64]">1h</span>
             </div>
-            <span className="text-[#557B5C] font-semibold flex items-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4 text-[#718368]" />
-              Service Worker Ready
+            <span className="text-[#557B5C] font-semibold flex items-center gap-1.5 text-xs">
+              <CheckCircle2 className="w-3.5 h-3.5 text-[#718368]" />
+              Service Worker &amp; Push Ready
             </span>
           </div>
         </TiltCard>
 
         {/* Bento 2: Ambient Procedural Audio Engine */}
-        <TiltCard className="p-7 flex flex-col justify-between relative overflow-hidden group bg-white border border-[#E7E0D5] shadow-sm">
+        <TiltCard className="p-6 flex flex-col justify-between relative overflow-hidden group bg-white border border-[#E7E0D5] shadow-sm">
           <div>
-            <div className="flex items-start justify-between mb-4">
-              <div className="w-12 h-12 rounded-2xl bg-[#EAF0E5] border border-[#718368]/30 text-[#718368] flex items-center justify-center shadow-sm">
-                <Volume2 className="w-6 h-6 text-[#718368]" />
+            <div className="flex items-start justify-between mb-3">
+              <div className="w-10 h-10 rounded-xl bg-[#EAF0E5] border border-[#718368]/30 text-[#718368] flex items-center justify-center shadow-2xs">
+                <Volume2 className="w-5 h-5 text-[#718368]" />
               </div>
-              <span className="text-xs font-bold text-[#557B5C] bg-[#EAF0E5] border border-[#718368]/30 px-3 py-1 rounded-full font-mono">
-                Web Audio API
+              <span className="text-[11px] font-bold text-[#557B5C] bg-[#EAF0E5] border border-[#718368]/30 px-2.5 py-0.5 rounded-full font-mono">
+                Web Audio
               </span>
             </div>
 
-            <h3 className="text-xl font-bold text-[#403B34] tracking-tight">
+            <h3 className="text-lg font-bold text-[#403B34] tracking-tight">
               Procedural Soundscapes
             </h3>
-            <p className="text-xs text-[#756E64] mt-2 leading-relaxed">
-              Real-time mathematical audio synthesis. Zero bloated MP3 downloads. Continuous non-looping rain and 8Hz alpha binaural waves.
+            <p className="text-xs text-[#756E64] mt-1 leading-relaxed">
+              Real-time mathematical audio synthesis. Zero bloated MP3 files. Continuous non-looping rain, 8Hz alpha waves, and white noise.
             </p>
           </div>
 
           {/* Interactive Sound Chips */}
-          <div className="mt-6 space-y-3">
-            <div className="flex items-center gap-2">
+          <div className="mt-5 space-y-2.5">
+            <div className="flex items-center gap-1.5">
               <button
                 type="button"
                 onClick={() => toggleSound('rain')}
-                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                className={`flex-1 py-1 px-2 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer ${
                   activeSound === 'rain'
-                    ? 'bg-[#718368] text-white border-[#718368] shadow-sm'
+                    ? 'bg-[#718368] text-white border-[#718368] shadow-xs'
                     : 'bg-[#FBF9F5] text-[#756E64] border-[#E7E0D5] hover:text-[#403B34]'
                 }`}
               >
@@ -130,9 +148,9 @@ export function BentoShowcase() {
               <button
                 type="button"
                 onClick={() => toggleSound('binaural')}
-                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                className={`flex-1 py-1 px-2 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer ${
                   activeSound === 'binaural'
-                    ? 'bg-[#718368] text-white border-[#718368] shadow-sm'
+                    ? 'bg-[#718368] text-white border-[#718368] shadow-xs'
                     : 'bg-[#FBF9F5] text-[#756E64] border-[#E7E0D5] hover:text-[#403B34]'
                 }`}
               >
@@ -141,9 +159,9 @@ export function BentoShowcase() {
               <button
                 type="button"
                 onClick={() => toggleSound('whitenoise')}
-                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                className={`flex-1 py-1 px-2 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer ${
                   activeSound === 'whitenoise'
-                    ? 'bg-[#718368] text-white border-[#718368] shadow-sm'
+                    ? 'bg-[#718368] text-white border-[#718368] shadow-xs'
                     : 'bg-[#FBF9F5] text-[#756E64] border-[#E7E0D5] hover:text-[#403B34]'
                 }`}
               >
@@ -152,7 +170,7 @@ export function BentoShowcase() {
             </div>
 
             {/* Audio Wave Visualizer */}
-            <div className="flex items-end justify-center gap-1 h-7 pt-1">
+            <div className="flex items-end justify-center gap-1 h-6">
               {[30, 60, 45, 80, 50, 75, 40, 90, 65, 35, 70, 55].map((h, i) => (
                 <motion.div
                   key={i}
@@ -173,112 +191,102 @@ export function BentoShowcase() {
           </div>
         </TiltCard>
 
-        {/* Bento 3: Natural Command Palette */}
-        <TiltCard className="p-7 flex flex-col justify-between bg-white border border-[#E7E0D5] shadow-sm">
+        {/* Bento 3: Compounding Habit Matrix */}
+        <TiltCard className="p-6 flex flex-col justify-between bg-white border border-[#E7E0D5] shadow-sm">
           <div>
-            <div className="flex items-start justify-between mb-4">
-              <div className="w-12 h-12 rounded-2xl bg-[#EAF0E5] border border-[#718368]/30 text-[#718368] flex items-center justify-center shadow-sm">
-                <Command className="w-6 h-6 text-[#718368]" />
+            <div className="flex items-start justify-between mb-3">
+              <div className="w-10 h-10 rounded-xl bg-[#FAF0E6] border border-[#F2DAC3] text-[#B88762] flex items-center justify-center shadow-2xs">
+                <Flame className="w-5 h-5 text-[#B88762]" />
               </div>
-              <span className="text-xs font-bold text-[#557B5C] bg-[#EAF0E5] border border-[#718368]/30 px-3 py-1 rounded-full font-mono">
-                ⌘K Quick Actions
+              <span className="text-[11px] font-bold text-[#B88762] bg-[#FAF0E6] border border-[#F2DAC3] px-2.5 py-0.5 rounded-full font-mono">
+                28-Day Matrix
               </span>
             </div>
 
-            <h3 className="text-xl font-bold text-[#403B34] tracking-tight">
-              Instant Command Velocity
+            <h3 className="text-lg font-bold text-[#403B34] tracking-tight">
+              Habits &amp; Streaks
             </h3>
-            <p className="text-xs text-[#756E64] mt-2 leading-relaxed">
-              Navigate anywhere in 50 milliseconds. Search tasks, switch views, start Pomodoro timers, and trigger soundscapes without touching the mouse.
+            <p className="text-xs text-[#756E64] mt-1 leading-relaxed">
+              Anchor daily rituals without toxic guilt. Responsive heatmaps and milestone celebrations reward persistent focus.
             </p>
           </div>
 
-          <div className="mt-6 pt-4 border-t border-[#E7E0D5] space-y-2">
-            <div className="flex items-center justify-between text-xs py-1.5 px-3 rounded-xl bg-[#FBF9F5] border border-[#E7E0D5]">
-              <span className="text-[#756E64] font-medium">Open Command Palette</span>
-              <kbd className="font-mono bg-white text-[#403B34] px-2 py-0.5 rounded text-[10px] border border-[#D9D0C3]">⌘K</kbd>
-            </div>
-            <div className="flex items-center justify-between text-xs py-1.5 px-3 rounded-xl bg-[#FBF9F5] border border-[#E7E0D5]">
-              <span className="text-[#756E64] font-medium">Quick New Task</span>
-              <kbd className="font-mono bg-white text-[#403B34] px-2 py-0.5 rounded text-[10px] border border-[#D9D0C3]">N</kbd>
-            </div>
+          <div className="mt-5 pt-3.5 border-t border-[#E7E0D5] flex items-center justify-between text-xs">
+            <span className="text-[#968D81]">Consistency Rate:</span>
+            <span className="text-[#B88762] font-bold font-mono">92% Retained</span>
           </div>
         </TiltCard>
 
-        {/* Bento 4: Drift-Free Timestamps (Spans 1 col) */}
-        <TiltCard className="p-7 flex flex-col justify-between bg-white border border-[#E7E0D5] shadow-sm">
+        {/* Bento 4: Calibrated Focus Sanctuary */}
+        <TiltCard className="p-6 flex flex-col justify-between bg-white border border-[#E7E0D5] shadow-sm">
           <div>
-            <div className="flex items-start justify-between mb-4">
-              <div className="w-12 h-12 rounded-2xl bg-[#FAF0E6] border border-[#F2DAC3] text-[#B88762] flex items-center justify-center shadow-sm">
-                <Clock className="w-6 h-6 text-[#B88762]" />
+            <div className="flex items-start justify-between mb-3">
+              <div className="w-10 h-10 rounded-xl bg-[#EAF0E5] border border-[#718368]/30 text-[#718368] flex items-center justify-center shadow-2xs">
+                <Timer className="w-5 h-5 text-[#718368]" />
               </div>
-              <span className="text-xs font-bold text-[#B88762] bg-[#FAF0E6] border border-[#F2DAC3] px-3 py-1 rounded-full font-mono">
-                Zero Drift
+              <span className="text-[11px] font-bold text-[#557B5C] bg-[#EAF0E5] border border-[#718368]/30 px-2.5 py-0.5 rounded-full font-mono">
+                Pomodoro
               </span>
             </div>
 
-            <h3 className="text-xl font-bold text-[#403B34] tracking-tight">
-              Drift-Free Precision
+            <h3 className="text-lg font-bold text-[#403B34] tracking-tight">
+              Calibrated Pomodoro
             </h3>
-            <p className="text-xs text-[#756E64] mt-2 leading-relaxed">
-              Standard interval countdowns drift when browser tabs are throttled in the background. Taskora computes remaining time against target epoch timestamps.
+            <p className="text-xs text-[#756E64] mt-1 leading-relaxed">
+              Scientific 25/5 intervals with optional long-break cycles and distraction-free fullscreen Zen mode.
             </p>
           </div>
 
-          <div className="mt-6 pt-4 border-t border-[#E7E0D5]">
-            <div className="flex items-center justify-between font-mono text-xs">
-              <span className="text-[#968D81]">Target Epoch:</span>
-              <span className="text-[#B88762] font-bold">100.0% Exact</span>
-            </div>
+          <div className="mt-5 pt-3.5 border-t border-[#E7E0D5] flex items-center justify-between text-xs">
+            <span className="text-[#968D81]">Timer Mode:</span>
+            <span className="text-[#557B5C] font-semibold">Adaptive Breaks</span>
           </div>
         </TiltCard>
 
-        {/* Bento 5: Real Productivity Velocity Engine (Spans 1 col) */}
-        <TiltCard className="p-7 flex flex-col justify-between bg-white border border-[#E7E0D5] shadow-sm">
+        {/* Bento 5: Instant Command Velocity (⌘K) */}
+        <TiltCard className="p-6 flex flex-col justify-between bg-white border border-[#E7E0D5] shadow-sm">
           <div>
-            <div className="flex items-start justify-between mb-4">
-              <div className="w-12 h-12 rounded-2xl bg-[#EAF0E5] border border-[#718368]/30 text-[#718368] flex items-center justify-center shadow-sm">
-                <BarChart3 className="w-6 h-6 text-[#718368]" />
+            <div className="flex items-start justify-between mb-3">
+              <div className="w-10 h-10 rounded-xl bg-[#EAF0E5] border border-[#718368]/30 text-[#718368] flex items-center justify-center shadow-2xs">
+                <Command className="w-5 h-5 text-[#718368]" />
               </div>
-              <span className="text-xs font-bold text-[#557B5C] bg-[#EAF0E5] border border-[#718368]/30 px-3 py-1 rounded-full font-mono">
-                Real Velocity
+              <span className="text-[11px] font-bold text-[#557B5C] bg-[#EAF0E5] border border-[#718368]/30 px-2.5 py-0.5 rounded-full font-mono">
+                ⌘K Velocity
               </span>
             </div>
 
-            <h3 className="text-xl font-bold text-[#403B34] tracking-tight">
-              Honest Score Gauge
+            <h3 className="text-lg font-bold text-[#403B34] tracking-tight">
+              Instant Command Speed
             </h3>
-            <p className="text-xs text-[#756E64] mt-2 leading-relaxed">
-              A composite 0–100 rating combining task completion, routine consistency, and active focus minutes. No manipulative fake metrics or vanity scores.
+            <p className="text-xs text-[#756E64] mt-1 leading-relaxed">
+              Navigate anywhere in 50 milliseconds. Search tasks, switch views, start timers, and trigger sounds without touching the mouse.
             </p>
           </div>
 
-          <div className="mt-6 pt-4 border-t border-[#E7E0D5]">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-[#968D81]">Streak Heatmap:</span>
-              <span className="text-[#557B5C] font-bold">28-Day Matrix</span>
-            </div>
+          <div className="mt-5 pt-3.5 border-t border-[#E7E0D5] flex items-center justify-between text-xs">
+            <span className="text-[#968D81]">Shortcut:</span>
+            <kbd className="font-mono bg-[#FBF9F5] text-[#403B34] px-2 py-0.5 rounded text-[10px] border border-[#D9D0C3]">⌘K</kbd>
           </div>
         </TiltCard>
 
-        {/* Bento 6: Local-First Security & Export (Spans 3 cols or wide) */}
-        <TiltCard className="p-7 md:col-span-3 flex flex-col sm:flex-row items-center justify-between gap-6 relative overflow-hidden bg-white border border-[#E7E0D5] shadow-sm">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-[#EAF0E5] border border-[#718368]/30 text-[#718368] flex items-center justify-center shrink-0 shadow-sm">
-              <ShieldCheck className="w-6 h-6 text-[#718368]" />
+        {/* Bento 6: Local-First Privacy & UID Cloud Sync (Spans 1 or 3 cols) */}
+        <TiltCard className="p-6 md:col-span-3 flex flex-col sm:flex-row items-center justify-between gap-4 relative overflow-hidden bg-white border border-[#E7E0D5] shadow-sm">
+          <div className="flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-[#EAF0E5] border border-[#718368]/30 text-[#718368] flex items-center justify-center shrink-0 shadow-2xs">
+              <ShieldCheck className="w-5 h-5 text-[#718368]" />
             </div>
             <div>
-              <h3 className="text-lg sm:text-xl font-bold text-[#403B34] tracking-tight">
+              <h3 className="text-base sm:text-lg font-bold text-[#403B34] tracking-tight">
                 100% Client-Side Privacy. Your Data Belongs to You.
               </h3>
-              <p className="text-xs sm:text-sm text-[#756E64] mt-1.5 max-w-2xl leading-relaxed">
-                Taskora stores all tasks, habits, and preferences in your browser’s indexed local storage. No external telemetry, no remote third-party databases, and full JSON export and restore at any time.
+              <p className="text-xs text-[#756E64] mt-1 max-w-2xl leading-relaxed">
+                Taskora stores all tasks, habits, and preferences in your browser’s indexed local storage with zero tracking. Connect Firebase for seamless, encrypted multi-device sync whenever you are ready.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
-            <span className="px-3.5 py-2 rounded-xl bg-[#FBF9F5] border border-[#E7E0D5] text-xs font-mono text-[#557B5C] flex items-center gap-1.5">
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="px-3 py-1.5 rounded-xl bg-[#FBF9F5] border border-[#E7E0D5] text-[11px] font-mono text-[#557B5C] flex items-center gap-1.5">
               <Lock className="w-3.5 h-3.5 text-[#718368]" />
               Local-First Sandbox
             </span>

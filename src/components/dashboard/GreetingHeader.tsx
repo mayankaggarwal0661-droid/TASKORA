@@ -119,7 +119,7 @@ export function GreetingHeader() {
 
         {/* Focus Mode button */}
         <Link href="/focus">
-          <Button variant="secondary" size="sm" className="hidden sm:flex">
+          <Button variant="secondary" size="sm" className="hidden sm:inline-flex">
             <Timer className="w-4 h-4 text-[#718368]" />
             <span>Focus Mode</span>
           </Button>

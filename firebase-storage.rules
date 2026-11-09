@@ -1,0 +1,27 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Isolated User Profile Pictures
+    // Path: profile-pictures/{userId}/{allPaths=**}
+    match /profile-pictures/{userId}/{allPaths=**} {
+      // Allow read for everyone or authenticated users so avatars load reliably
+      allow read: if true;
+
+      // Allow write (upload/delete) only by the authenticated owner of the profile
+      allow write: if request.auth != null 
+                   && request.auth.uid == userId
+                   && (request.resource == null || (
+                     // Max file size: 5 MB (5 * 1024 * 1024 = 5242880 bytes)
+                     request.resource.size <= 5 * 1024 * 1024
+                     // Only permitted image MIME types
+                     && request.resource.contentType.matches('image/(jpeg|png|webp|jpg)')
+                   ));
+    }
+
+    // Default catch-all: deny all other paths by default
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
+

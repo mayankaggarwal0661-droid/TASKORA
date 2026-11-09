@@ -1,90 +1,122 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useRef } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion, useScroll, useSpring } from 'framer-motion';
+import { useAuth } from '@/context/AuthContext';
 import { FloatingNav } from '@/components/landing/FloatingNav';
 import { LandingFooter } from '@/components/landing/LandingFooter';
-import { DecorativeParallax } from '@/components/landing/DecorativeParallax';
 import { SplitText } from '@/components/landing/SplitText';
 import { StoryTimelineSection } from '@/components/landing/StoryTimelineSection';
 import { BentoShowcase } from '@/components/landing/BentoShowcase';
+import { TiltCard } from '@/components/ui/TiltCard';
+import { DitherVeil } from '@/components/ui/DitherVeil';
+import { soundService } from '@/features/audio/sound-service';
 import {
   Leaf,
   ArrowRight,
   CheckCircle2,
-  Zap,
-  BarChart3,
-  Flame,
-  Timer,
   Bell,
-  Calendar,
   Star,
-  Sparkles
+  Sparkles,
+  Compass,
+  Volume2,
+  Flame,
+  Clock,
+  ShieldCheck
 } from 'lucide-react';
 
-const features = [
-  {
-    icon: CheckCircle2,
-    title: 'Smart Task Scheduling',
-    desc: 'Create tasks with due dates, priorities, subtasks, and recurring rules. Filter and view as list or kanban board.',
-  },
-  {
-    icon: Bell,
-    title: 'Advance Reminders',
-    desc: 'Get proactive alerts 5 min to 1 hour before deadlines. Configure quiet hours and morning briefings.',
-  },
-  {
-    icon: Flame,
-    title: 'Routines & Streaks',
-    desc: 'Build daily habits with heatmap tracking and streak milestones. Never break the chain.',
-  },
-  {
-    icon: Timer,
-    title: 'Focus Mode',
-    desc: 'Pomodoro timer with procedural ambient soundscapes — rain, binaural beats, white noise, forest.',
-  },
-  {
-    icon: BarChart3,
-    title: 'Productivity Analytics',
-    desc: 'Real metrics from your actual task deliveries, habit consistency, and deep focus sessions.',
-  },
-  {
-    icon: Calendar,
-    title: 'Calendar View',
-    desc: 'Monthly overview with per-day agendas. Create tasks directly from any date in the grid.',
-  },
+const proofChips = [
+  'Proactive 15m Alerts',
+  'Procedural Web Audio',
+  '100% Client-Side Privacy',
+  'Instant Guest Access',
 ];
 
-const proofChips = [
-  'Web Audio API Synthesis',
-  'Drift-Free Timestamp Engine',
-  '100% Client-Side Privacy',
-  'No Account Required',
-];
+interface MockTask {
+  id: number;
+  title: string;
+  priority: 'Critical' | 'High' | 'Routine';
+  due: string;
+  leadTime?: string;
+  done: boolean;
+}
 
 export default function LandingPage() {
   const router = useRouter();
+  const heroRef = useRef<HTMLDivElement>(null);
+  const { user, continueAsGuest } = useAuth();
 
   // Scroll progress bar
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
 
+  // Interactive mock tasks in hero preview
+  const [mockTasks, setMockTasks] = useState<MockTask[]>([
+    {
+      id: 1,
+      title: 'Review Q4 system architecture',
+      priority: 'High',
+      due: '11:00 AM',
+      done: true,
+    },
+    {
+      id: 2,
+      title: 'Design token parity & verification',
+      priority: 'Critical',
+      due: 'In 28m',
+      leadTime: 'ðŸ”” 15m lead alert',
+      done: false,
+    },
+    {
+      id: 3,
+      title: 'Evening mindfulness & habit reflection',
+      priority: 'Routine',
+      due: '6:30 PM',
+      done: false,
+    },
+  ]);
+
+  const [heroAudioActive, setHeroAudioActive] = useState(false);
+
+  const toggleMockTask = (id: number) => {
+    soundService.playClick();
+    setMockTasks((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t))
+    );
+  };
+
+  const toggleHeroAudio = () => {
+    if (heroAudioActive) {
+      soundService.stopAmbient();
+      setHeroAudioActive(false);
+    } else {
+      soundService.setAmbient('rain', 0.3);
+      setHeroAudioActive(true);
+    }
+  };
+
   const handleLaunchWorkspace = () => {
-    router.push('/welcome');
+    if (user) {
+      router.push('/dashboard');
+    } else {
+      router.push('/welcome');
+    }
+  };
+
+  const handleGuestAccess = async () => {
+    try {
+      await continueAsGuest();
+      router.push('/dashboard');
+    } catch {
+      router.push('/welcome');
+    }
   };
 
   return (
     <div className="min-h-screen bg-[#F7F4EE] text-[#403B34] relative overflow-x-hidden selection:bg-[#718368]/20">
 
-      {/* Parallax Vector Accent Graphics */}
-      <DecorativeParallax />
-
-      {/* Subtle warm aurora background */}
-      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-        <div className="absolute -top-40 left-1/4 w-[700px] h-[500px] bg-[#EAF0E5]/60 rounded-full blur-[120px]" />
-        <div className="absolute bottom-0 right-1/4 w-[500px] h-[400px] bg-[#F4E9DE]/50 rounded-full blur-[100px]" />
-      </div>
 
       {/* Scroll progress bar */}
       <motion.div
@@ -95,227 +127,330 @@ export default function LandingPage() {
       {/* Floating Navigation */}
       <FloatingNav />
 
-      {/* ── Hero Section ─────────────────────────────────────────────── */}
-      <section className="relative min-h-[92vh] pt-32 sm:pt-36 pb-16 flex flex-col justify-center items-center text-center px-4 max-w-5xl mx-auto z-10">
-
-        {/* Eyebrow badge */}
-        <motion.div
-          initial={{ opacity: 0, y: -16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#EAF0E5] border border-[#718368]/30 text-[#557B5C] text-xs font-semibold mb-8 shadow-xs"
-        >
-          <Leaf className="w-3.5 h-3.5 text-[#718368]" />
-          <span>Calm, Focused Productivity — Zero Noise</span>
-        </motion.div>
-
-        {/* Staggered SplitText Headline */}
-        <div className="text-4xl sm:text-6xl md:text-7xl font-black tracking-tight max-w-4xl text-[#403B34] leading-[1.08]">
-          <SplitText
-            text="Your tasks, beautifully organized."
-            highlightWords={['beautifully']}
-            highlightClassName="text-[#718368] underline decoration-[#EAF0E5] decoration-wavy decoration-4 underline-offset-8"
-            delay={0.12}
+      {/* â”€â”€ Compact 2-Column Hero Section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <section
+        id="overview"
+        ref={heroRef}
+        className="relative z-10 w-full min-h-screen min-h-[100svh] flex items-center justify-center overflow-hidden bg-[#F7F4EE] pt-24 sm:pt-28 pb-12 scroll-mt-24"
+      >
+        {/* Layer 1 (Lowest, z-0): Base Background Image */}
+        <div className="absolute inset-0 w-full h-full pointer-events-none z-0 overflow-hidden bg-[#F7F4EE]" aria-hidden="true">
+          <img
+            src="/workspace-hero.jpg"
+            alt="Warm workspace office desk with open laptop, coffee cup, notebook, and plant"
+            className="w-full h-full object-cover select-none"
+            onError={(e) => {
+              (e.currentTarget as HTMLElement).style.display = 'none';
+            }}
           />
         </div>
 
-        {/* Subtitle */}
-        <motion.p
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.28, ease: [0.16, 1, 0.3, 1] }}
-          className="text-base sm:text-lg md:text-xl text-[#756E64] max-w-2xl mt-6 leading-relaxed"
-        >
-          Taskora combines proactive reminders, daily habit rituals, deep focus sessions, and real analytics — in a warm, distraction-free workspace.
-        </motion.p>
+        {/* Layer 2 (Above base image, z-[1]): DitherVeil Interactive Canvas Effect */}
+        <div className="absolute inset-0 w-full h-full pointer-events-none z-[1] overflow-hidden" aria-hidden="true">
+          <DitherVeil
+            src="/workspace-hero.jpg"
+            fit="cover"
+            pattern="floyd"
+            palette="duotone"
+            pixelSize={2}
+            inkColor="#718368"
+            paperColor="#F7F4EE"
+            rimColor="#B88762"
+            rim={0.1}
+            revealRadius={220}
+            softness={0.65}
+            linger={0.8}
+            contrast={1.15}
+            brightness={0}
+            clickBurst={false}
+            wander={false}
+            targetRef={heroRef}
+            className="w-full h-full"
+            fallback={
+              <div
+                className="w-full h-full bg-[#F7F4EE]"
+                style={{
+                  backgroundImage: 'radial-gradient(#718368 1.2px, transparent 1.2px)',
+                  backgroundSize: '16px 16px',
+                  opacity: 0.4,
+                }}
+              />
+            }
+          />
+        </div>
 
-        {/* Hero Interactive Preview Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 24, scale: 0.98 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.7, delay: 0.38, ease: [0.16, 1, 0.3, 1] }}
-          className="w-full max-w-lg my-10"
-        >
-          <div className="relative p-6 bg-white rounded-3xl border border-[#E7E0D5] shadow-xl hover:shadow-2xl transition-all duration-300">
-            {/* Mock task list preview */}
-            <div className="space-y-3">
-              {[
-                { title: 'Review Q4 project proposal', priority: 'High', done: true },
-                { title: 'Morning mindfulness & journaling', priority: 'Routine', done: true },
-                { title: 'Send client deliverables by 5pm', priority: 'Critical', done: false },
-                { title: 'Deep reading — 30 minutes', priority: 'Learning', done: false },
-              ].map((task, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, x: -12 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.5 + i * 0.08 }}
-                  className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
-                    task.done ? 'bg-[#FBF9F5] border-[#E7E0D5] opacity-60' : 'bg-white border-[#E7E0D5] hover:border-[#718368]/40'
-                  }`}
-                >
-                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                    task.done ? 'border-[#718368] bg-[#718368]' : 'border-[#D9D0C3]'
-                  }`}>
-                    {task.done && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
-                  </div>
-                  <span className={`text-sm font-medium flex-1 text-left ${task.done ? 'line-through text-[#968D81]' : 'text-[#403B34]'}`}>
-                    {task.title}
-                  </span>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold border ${
-                    task.priority === 'Critical' ? 'bg-[#F5E6E5] text-[#B95750] border-[#B95750]/30'
-                    : task.priority === 'High' ? 'bg-[#F4EBD9] text-[#A97535] border-[#A97535]/30'
-                    : 'bg-[#EAF0E5] text-[#557B5C] border-[#718368]/30'
-                  }`}>
-                    {task.priority}
-                  </span>
-                </motion.div>
+        {/* Layer 3 (Above effect, below content, z-[2]): Subtle warm directional readability overlay */}
+        <div
+          className="absolute inset-0 bg-gradient-to-r from-[#F7F4EE]/90 via-[#F7F4EE]/50 to-transparent pointer-events-none z-[2]"
+          aria-hidden="true"
+        />
+
+        <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 w-full">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center w-full">
+          {/* â”€â”€ Left Column: Concise Content, Headlines & CTAs â”€â”€ */}
+          <div className="lg:col-span-7 flex flex-col justify-center text-left">
+            {/* Eyebrow badge */}
+            <motion.div
+              initial={{ opacity: 0, y: -12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#EAF0E5] border border-[#718368]/30 text-[#557B5C] text-xs font-semibold mb-3.5 shadow-2xs w-fit"
+            >
+              <Leaf className="w-3.5 h-3.5 text-[#718368]" />
+              <span>Calm, Focused Productivity â€” Zero Noise</span>
+            </motion.div>
+
+            {/* Headline */}
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-5xl xl:text-6xl font-black tracking-tight text-[#403B34] leading-[1.12]">
+              <SplitText
+                text="Your tasks & habits, beautifully organized."
+                highlightWords={['beautifully']}
+                highlightClassName="text-[#718368] underline decoration-[#EAF0E5] decoration-wavy decoration-4 underline-offset-6"
+                delay={0.08}
+              />
+            </h1>
+
+            {/* Subtitle */}
+            <motion.p
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="text-sm sm:text-base lg:text-lg text-[#756E64] max-w-xl mt-3.5 sm:mt-4 leading-relaxed font-normal"
+            >
+              Taskora combines proactive advance reminders, daily habit rituals, Pomodoro flow, and procedural soundscapes â€” in a warm, distraction-free workspace.
+            </motion.p>
+
+            {/* Action Buttons */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+              className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mt-6 sm:mt-7"
+            >
+              <button
+                type="button"
+                onClick={handleLaunchWorkspace}
+                className="px-6 py-3.5 rounded-xl bg-[#718368] hover:bg-[#5F7157] text-white font-bold text-xs sm:text-sm shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span>Launch Workspace</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+
+              <button
+                type="button"
+                onClick={handleGuestAccess}
+                className="px-5 py-3.5 rounded-xl bg-white hover:bg-[#FBF9F5] text-[#403B34] font-semibold text-xs sm:text-sm border border-[#D9D0C3] hover:border-[#718368] transition-all flex items-center justify-center gap-2 cursor-pointer shadow-2xs hover:shadow-xs active:scale-[0.98]"
+              >
+                <Compass className="w-4 h-4 text-[#718368]" />
+                <span>Explore as Guest</span>
+              </button>
+            </motion.div>
+
+            {/* Quick auth prompt link */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+              className="mt-3 text-xs text-[#756E64]"
+            >
+              <span>Have an account? </span>
+              <Link
+                href="/welcome"
+                className="text-[#718368] font-semibold hover:text-[#5F7157] underline underline-offset-2"
+              >
+                Sign in with Google or Email
+              </Link>
+            </motion.div>
+
+            {/* Proof chips */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.45 }}
+              className="flex flex-wrap items-center gap-3 sm:gap-4 mt-6 pt-5 border-t border-[#E7E0D5] text-[11px] text-[#968D81] font-medium"
+            >
+              {proofChips.map((chip) => (
+                <span key={chip} className="flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[#557B5C] shrink-0" />
+                  <span>{chip}</span>
+                </span>
               ))}
-            </div>
-            {/* Bottom mini-stats */}
-            <div className="flex items-center justify-between mt-4 pt-3 border-t border-[#E7E0D5] text-xs text-[#968D81]">
-              <span>2 of 4 tasks complete</span>
-              <div className="flex items-center gap-1 text-[#718368] font-semibold">
-                <Star className="w-3.5 h-3.5" />
-                <span>85 productivity score</span>
-              </div>
-            </div>
+            </motion.div>
           </div>
-        </motion.div>
 
-        {/* CTAs */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.5 }}
-          className="flex flex-col sm:flex-row items-center gap-4"
-        >
-          <button
-            onClick={handleLaunchWorkspace}
-            className="w-full sm:w-auto px-8 py-4 rounded-xl font-bold text-sm text-white bg-[#718368] hover:bg-[#5F7157] shadow-md border border-[#718368] transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
+          {/* â”€â”€ Right Column: Compact Product Preview Card â”€â”€ */}
+          <motion.div
+            initial={{ opacity: 0, y: 20, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.55, delay: 0.15 }}
+            className="lg:col-span-5 w-full flex justify-center"
           >
-            <span>Enter Your Workspace</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
+            <TiltCard
+              maxTilt={4}
+              className="w-full max-w-md p-5 sm:p-6 bg-white/95 rounded-3xl border border-[#E7E0D5] shadow-xl relative overflow-hidden backdrop-blur-sm"
+            >
+              {/* Card Header: Live Agenda & Streaks */}
+              <div className="flex items-center justify-between pb-3 border-b border-[#E7E0D5]">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-[#557B5C] animate-pulse" />
+                  <span className="text-xs font-bold text-[#403B34]">Today&apos;s Focus</span>
+                  <span className="text-[10px] text-[#968D81] font-mono">â€¢ Active Agenda</span>
+                </div>
 
-          <a
-            href="#story"
-            className="w-full sm:w-auto px-6 py-4 rounded-xl font-semibold text-sm text-[#756E64] hover:text-[#403B34] bg-white hover:bg-[#F0EBE2] border border-[#E7E0D5] transition-all flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <Sparkles className="w-4 h-4 text-[#718368]" />
-            <span>Interactive Story</span>
-          </a>
-        </motion.div>
+                <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#FAF0E6] border border-[#F2DAC3] text-[10px] font-bold text-[#B88762]">
+                  <Flame className="w-3 h-3 text-[#B88762]" />
+                  <span>5d Streak</span>
+                </div>
+              </div>
 
-        {/* Proof chips */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.7 }}
-          className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 mt-10 text-xs text-[#968D81] font-medium"
-        >
-          {proofChips.map(chip => (
-            <span key={chip} className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4 text-[#557B5C]" />
-              {chip}
-            </span>
-          ))}
-        </motion.div>
+              {/* Next Up Live Banner */}
+              <div className="mt-3.5 p-3 rounded-2xl bg-[#EAF0E5]/70 border border-[#718368]/25 flex items-start justify-between gap-3">
+                <div className="space-y-0.5 min-w-0">
+                  <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[#557B5C]">
+                    <Clock className="w-3 h-3 text-[#718368]" />
+                    <span>Next Milestone</span>
+                  </div>
+                  <p className="text-xs font-bold text-[#403B34] truncate">
+                    Platform Architecture Review
+                  </p>
+                  <p className="text-[10px] text-[#557B5C] font-semibold">
+                    ðŸ”” Advance reminder scheduled 15m prior
+                  </p>
+                </div>
+                <span className="text-[10px] font-mono font-bold bg-white text-[#557B5C] px-2 py-1 rounded-lg border border-[#718368]/25 shrink-0 shadow-2xs">
+                  in 28m
+                </span>
+              </div>
+
+              {/* Interactive Mock Tasks List */}
+              <div className="mt-3.5 space-y-2">
+                {mockTasks.map((task) => (
+                  <div
+                    key={task.id}
+                    onClick={() => toggleMockTask(task.id)}
+                    className={`flex items-center gap-2.5 p-2.5 rounded-xl border transition-all cursor-pointer ${
+                      task.done
+                        ? 'bg-[#FBF9F5] border-[#E7E0D5] opacity-65'
+                        : 'bg-white border-[#E7E0D5] hover:border-[#718368]/50 hover:shadow-2xs'
+                    }`}
+                  >
+                    <div
+                      className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                        task.done
+                          ? 'border-[#718368] bg-[#718368]'
+                          : 'border-[#D9D0C3] hover:border-[#718368]'
+                      }`}
+                    >
+                      {task.done && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <p
+                        className={`text-xs font-medium truncate ${
+                          task.done ? 'line-through text-[#968D81]' : 'text-[#403B34]'
+                        }`}
+                      >
+                        {task.title}
+                      </p>
+                      {task.leadTime && !task.done && (
+                        <span className="text-[10px] text-[#A97535] font-medium block">
+                          {task.leadTime}
+                        </span>
+                      )}
+                    </div>
+
+                    <span
+                      className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider shrink-0 border ${
+                        task.priority === 'Critical'
+                          ? 'bg-[#F5E6E5] text-[#B95750] border-[#B95750]/30'
+                          : task.priority === 'High'
+                          ? 'bg-[#F4EBD9] text-[#A97535] border-[#A97535]/30'
+                          : 'bg-[#EAF0E5] text-[#557B5C] border-[#718368]/30'
+                      }`}
+                    >
+                      {task.priority}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Bottom Widget: Audio Chamber & Velocity Score */}
+              <div className="mt-3.5 pt-3 border-t border-[#E7E0D5] flex items-center justify-between text-xs">
+                {/* Audio pill with live toggle */}
+                <button
+                  type="button"
+                  onClick={toggleHeroAudio}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-semibold transition-all cursor-pointer ${
+                    heroAudioActive
+                      ? 'bg-[#718368] text-white border-[#718368]'
+                      : 'bg-[#FBF9F5] text-[#756E64] border-[#E7E0D5] hover:text-[#403B34]'
+                  }`}
+                  title="Toggle Web Audio rainfall sound"
+                >
+                  <Volume2 className={`w-3.5 h-3.5 ${heroAudioActive ? 'animate-pulse text-amber-200' : ''}`} />
+                  <span>{heroAudioActive ? 'Rain Active' : 'Rain Audio'}</span>
+                </button>
+
+                <div className="flex items-center gap-1.5 text-[#557B5C] font-semibold text-[11px]">
+                  <Star className="w-3.5 h-3.5 text-[#A97535] fill-[#A97535]" />
+                  <span>88 Productivity Velocity</span>
+                </div>
+              </div>
+            </TiltCard>
+          </motion.div>
+          </div>
+        </div>
       </section>
 
-      {/* ── Scroll-Animated Card Storytelling Section (Restored) ─────────── */}
+      {/* â”€â”€ Core Product Story & Pillars Section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <StoryTimelineSection />
 
-      {/* ── Interactive Bento Architecture & Audio Showcase ─────────────── */}
+      {/* â”€â”€ Interactive Bento Architecture & Features â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <BentoShowcase />
 
-      {/* ── Features Section ─────────────────────────────────────────── */}
-      <section id="features" className="relative z-10 max-w-6xl mx-auto px-4 py-20">
-        <div className="text-center mb-12">
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5 }}
-            className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#EAF0E5] border border-[#718368]/25 text-[#557B5C] text-xs font-semibold mb-4"
-          >
-            <Leaf className="w-3.5 h-3.5" />
-            <span>Everything you need</span>
-          </motion.div>
-          <motion.h2
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.08 }}
-            className="text-3xl sm:text-4xl font-black text-[#403B34] tracking-tight"
-          >
-            A complete productivity ecosystem
-          </motion.h2>
-          <motion.p
-            initial={{ opacity: 0, y: 12 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.14 }}
-            className="text-[#756E64] mt-3 max-w-xl mx-auto"
-          >
-            Every tool you need to build better days, consistently.
-          </motion.p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {features.map((feature, i) => {
-            const Icon = feature.icon;
-            return (
-              <motion.div
-                key={feature.title}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: i * 0.07 }}
-                whileHover={{ y: -4, transition: { duration: 0.2 } }}
-                className="p-6 bg-white rounded-2xl border border-[#E7E0D5] hover:border-[#718368]/40 hover:shadow-lg transition-all group cursor-pointer"
-              >
-                <div className="w-10 h-10 rounded-xl bg-[#EAF0E5] flex items-center justify-center mb-4 group-hover:bg-[#D9E8D3] transition-colors">
-                  <Icon className="w-5 h-5 text-[#718368]" />
-                </div>
-                <h3 className="text-base font-bold text-[#403B34] mb-2">{feature.title}</h3>
-                <p className="text-sm text-[#756E64] leading-relaxed">{feature.desc}</p>
-              </motion.div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* ── CTA Banner ───────────────────────────────────────────────── */}
-      <section className="relative z-10 py-20 max-w-4xl mx-auto px-4">
+      {/* â”€â”€ Compact Conversion CTA Banner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <section className="relative z-10 py-10 sm:py-14 max-w-4xl mx-auto px-4 sm:px-6">
         <motion.div
-          initial={{ opacity: 0, y: 24 }}
+          initial={{ opacity: 0, y: 18 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.55 }}
-          className="relative overflow-hidden p-10 sm:p-14 rounded-3xl bg-white border border-[#E7E0D5] shadow-xl text-center"
+          transition={{ duration: 0.45 }}
+          className="relative overflow-hidden p-8 sm:p-10 rounded-3xl bg-white border border-[#E7E0D5] shadow-lg text-center"
         >
           {/* Subtle warm glow */}
-          <div className="absolute top-0 right-0 w-64 h-64 bg-[#EAF0E5] rounded-full blur-3xl opacity-60 pointer-events-none -mr-16 -mt-16" />
-          <div className="absolute bottom-0 left-0 w-48 h-48 bg-[#F4E9DE] rounded-full blur-3xl opacity-50 pointer-events-none -ml-12 -mb-12" />
+          <div className="absolute top-0 right-0 w-56 h-56 bg-[#EAF0E5] rounded-full blur-3xl opacity-60 pointer-events-none -mr-12 -mt-12" />
+          <div className="absolute bottom-0 left-0 w-44 h-44 bg-[#F4E9DE] rounded-full blur-3xl opacity-50 pointer-events-none -ml-10 -mb-10" />
 
-          <div className="relative z-10 space-y-6">
-            <div className="w-14 h-14 rounded-2xl bg-[#EAF0E5] flex items-center justify-center mx-auto border border-[#718368]/20">
-              <Leaf className="w-7 h-7 text-[#718368]" />
+          <div className="relative z-10 space-y-4">
+            <div className="w-11 h-11 rounded-2xl bg-[#EAF0E5] flex items-center justify-center mx-auto border border-[#718368]/20">
+              <Leaf className="w-5 h-5 text-[#718368]" />
             </div>
-            <h2 className="text-3xl sm:text-4xl font-black text-[#403B34] tracking-tight">
+
+            <h2 className="text-2xl sm:text-3xl font-black text-[#403B34] tracking-tight">
               Ready to build better days?
             </h2>
-            <p className="text-[#756E64] max-w-lg mx-auto">
-              Step into a calm, focused workspace with smart reminders, habit rituals, and real productivity insights. No account required.
+
+            <p className="text-xs sm:text-sm text-[#756E64] max-w-md mx-auto leading-relaxed">
+              Step into a calm, focused workspace with proactive reminders, habit rituals, and real productivity insights. No account required.
             </p>
-            <div className="pt-2">
+
+            <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
               <button
+                type="button"
                 onClick={handleLaunchWorkspace}
-                className="px-8 py-4 rounded-xl text-base font-bold text-white bg-[#718368] hover:bg-[#5F7157] shadow-md border border-[#718368] transition-all hover:scale-105 active:scale-95 inline-flex items-center gap-2 cursor-pointer"
+                className="w-full sm:w-auto px-6 py-3 rounded-xl bg-[#718368] hover:bg-[#5F7157] text-white text-xs sm:text-sm font-bold shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] inline-flex items-center justify-center gap-2 cursor-pointer"
               >
                 <span>Launch Taskora Workspace</span>
                 <ArrowRight className="w-4 h-4" />
+              </button>
+
+              <button
+                type="button"
+                onClick={handleGuestAccess}
+                className="w-full sm:w-auto px-5 py-3 rounded-xl bg-white hover:bg-[#FBF9F5] text-[#403B34] text-xs sm:text-sm font-semibold border border-[#D9D0C3] hover:border-[#718368] transition-all inline-flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
+              >
+                <Compass className="w-4 h-4 text-[#718368]" />
+                <span>Explore as Guest</span>
               </button>
             </div>
           </div>

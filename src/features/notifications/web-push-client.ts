@@ -110,24 +110,61 @@ export function getClientDeviceType(): 'desktop' | 'mobile' | 'tablet' {
   return 'desktop';
 }
 
+let isDocumentUnloading = false;
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => {
+    isDocumentUnloading = true;
+  }, { passive: true });
+  window.addEventListener('pagehide', () => {
+    isDocumentUnloading = true;
+  }, { passive: true });
+}
+
+/**
+ * Check if document is currently in an invalid, navigating, or unloading state
+ */
+function isDocumentInactive(): boolean {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return true;
+  if (isDocumentUnloading || window.closed) return true;
+  return false;
+}
+
+/**
+ * Check if an error is a browser DOMException InvalidStateError
+ */
+function isInvalidStateError(err: unknown): boolean {
+  if (!err) return false;
+  if (err instanceof DOMException && err.name === 'InvalidStateError') return true;
+  if (typeof err === 'object' && 'name' in err && (err as { name: string }).name === 'InvalidStateError') return true;
+  const msg = err instanceof Error ? err.message : String(err);
+  return msg.toLowerCase().includes('invalid state');
+}
+
+let inFlightRegistration: Promise<ServiceWorkerRegistration | null> | null = null;
+
 /**
  * Helper to safely get an active service worker registration with a strict timeout.
  * Prevents navigator.serviceWorker.ready from hanging indefinitely.
  */
 async function getReadyServiceWorker(timeoutMs = 3000): Promise<ServiceWorkerRegistration | null> {
-  if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return null;
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator) || isDocumentInactive()) return null;
 
   try {
-    const existing = await navigator.serviceWorker.getRegistration();
+    const existing = await navigator.serviceWorker.getRegistration().catch((e) => {
+      if (isInvalidStateError(e)) return null;
+      return null;
+    });
     if (existing?.active) return existing;
+    if (isDocumentInactive()) return null;
 
-    const readyPromise = navigator.serviceWorker.ready;
+    const readyPromise = navigator.serviceWorker.ready.catch(() => null);
     const timeoutPromise = new Promise<null>((resolve) =>
       setTimeout(() => resolve(null), timeoutMs)
     );
 
     return await Promise.race([readyPromise, timeoutPromise]);
-  } catch {
+  } catch (err) {
+    if (isInvalidStateError(err)) return null;
     return null;
   }
 }
@@ -136,30 +173,66 @@ async function getReadyServiceWorker(timeoutMs = 3000): Promise<ServiceWorkerReg
  * Register Service Worker
  */
 export async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
-  if (!isWebPushSupported()) return null;
-  try {
-    const existing = await navigator.serviceWorker.getRegistration();
-    if (existing?.active) return existing;
+  if (!isWebPushSupported() || isDocumentInactive()) return null;
 
-    const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-    const ready = await getReadyServiceWorker(3000);
-    return ready || reg;
-  } catch (err) {
-    console.error('[WebPush] Service Worker registration failed:', err);
-    return null;
+  // Wait for document to be ready if called during initial parse
+  if (typeof document !== 'undefined' && document.readyState === 'loading') {
+    await new Promise<void>((resolve) => {
+      const onReady = () => {
+        window.removeEventListener('DOMContentLoaded', onReady);
+        window.removeEventListener('load', onReady);
+        resolve();
+      };
+      window.addEventListener('DOMContentLoaded', onReady, { once: true });
+      window.addEventListener('load', onReady, { once: true });
+    });
   }
+  if (isDocumentInactive()) return null;
+
+  if (inFlightRegistration) return inFlightRegistration;
+
+  inFlightRegistration = (async () => {
+    try {
+      const existing = await navigator.serviceWorker.getRegistration().catch((e) => {
+        if (isInvalidStateError(e)) return null;
+        throw e;
+      });
+      if (existing?.active) return existing;
+      if (isDocumentInactive()) return null;
+
+      const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+      const ready = await getReadyServiceWorker(3000);
+      return ready || reg;
+    } catch (err) {
+      if (isInvalidStateError(err)) {
+        // Document is navigating, unloading, or not fully active.
+        // Return null gracefully without polluting the console.
+        return null;
+      }
+      console.error('[WebPush] Service Worker registration failed:', err);
+      return null;
+    } finally {
+      inFlightRegistration = null;
+    }
+  })();
+
+  return inFlightRegistration;
 }
 
 /**
  * Get current push subscription from PushManager
  */
 export async function getCurrentPushSubscription(): Promise<PushSubscription | null> {
-  if (!isWebPushSupported()) return null;
+  if (!isWebPushSupported() || isDocumentInactive()) return null;
   try {
     const reg = await getReadyServiceWorker(2500);
-    if (!reg?.pushManager) return null;
-    return await reg.pushManager.getSubscription();
-  } catch {
+    if (!reg?.pushManager || isDocumentInactive()) return null;
+    return await reg.pushManager.getSubscription().catch((e) => {
+      if (isInvalidStateError(e)) return null;
+      return null;
+    });
+  } catch (err) {
+    if (isInvalidStateError(err)) return null;
     return null;
   }
 }
@@ -212,9 +285,15 @@ export async function subscribeToWebPush(authUid?: string | null): Promise<{
 
     // 3. Subscribe with PushManager
     const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
-    let sub = await reg.pushManager.getSubscription();
+    let sub = await reg.pushManager.getSubscription().catch((e) => {
+      if (isInvalidStateError(e)) return null;
+      throw e;
+    });
 
     if (!sub) {
+      if (isDocumentInactive()) {
+        return { success: false, error: 'Document transitioned during subscription.' };
+      }
       sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: applicationServerKey as unknown as BufferSource,
@@ -242,6 +321,9 @@ export async function subscribeToWebPush(authUid?: string | null): Promise<{
 
     return { success: true, subscription: sub, permission };
   } catch (err: unknown) {
+    if (isInvalidStateError(err)) {
+      return { success: false, error: 'Document transitioned or was inactive during push subscription.' };
+    }
     const message = err instanceof Error ? err.message : String(err);
     console.error('[WebPush] subscribeToWebPush error:', message);
     return { success: false, error: message };

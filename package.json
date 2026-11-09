@@ -9,6 +9,8 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@hugeicons/core-free-icons": "^4.4.0",
+    "@hugeicons/react": "^1.1.10",
     "@types/canvas-confetti": "^1.9.0",
     "@types/three": "^0.186.0",
     "canvas-confetti": "^1.9.4",
@@ -17,7 +19,9 @@
     "framer-motion": "^14.6.0",
     "gsap": "^3.15.0",
     "lucide-react": "^1.61.0",
+    "motion": "^14.9.0",
     "next": "16.4.3",
+    "ogl": "^1.0.11",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "tailwind-merge": "^3.7.0",

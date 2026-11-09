@@ -1,0 +1,49 @@
+.star-border {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--star-border-radius, 12px);
+  background: var(--star-border-surface, transparent);
+  color: var(--star-border-text, inherit);
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.star-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 var(--star-border-thickness, 1.2px) var(--star-border-track, #E7E0D5);
+  pointer-events: none;
+}
+
+.star-border__light {
+  position: absolute;
+  top: -48px;
+  left: -48px;
+  z-index: -1;
+  width: calc(100% + 96px);
+  height: calc(100% + 96px);
+  pointer-events: none;
+}
+
+button.star-border,
+a.star-border {
+  cursor: pointer;
+}
+
+.star-border:focus-visible {
+  outline: 2px solid var(--star-border-track, #718368);
+  outline-offset: 3px;
+}
+
+.star-border:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+

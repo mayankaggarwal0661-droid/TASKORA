@@ -22,8 +22,12 @@ import {
   LogOut,
   KeyRound,
   AlertCircle,
+  Camera,
+  Sparkles,
 } from 'lucide-react';
 import { GoogleAuthModal } from '@/components/auth/GoogleAuthModal';
+import { UserAvatar } from '@/components/ui/UserAvatar';
+import { AvatarStorageService } from '@/features/profile/avatar-storage-service';
 import { NotificationSoundSettings } from '@/components/settings/NotificationSoundSettings';
 
 export default function SettingsPage() {
@@ -34,10 +38,11 @@ export default function SettingsPage() {
     exportData,
     importData,
     resetData,
-    addToast
+    addToast,
+    openAvatarModal,
   } = useTaskora();
 
-  const { user, isGuest, signOutUser } = useAuth();
+  const { user, isGuest, signOutUser, updateUserPhoto } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -87,6 +92,32 @@ export default function SettingsPage() {
   };
 
   const inputClass = 'w-full px-3.5 py-2.5 rounded-xl bg-[#FBF9F5] border border-[#E7E0D5] text-[#403B34] text-sm focus:border-[#718368] focus:outline-none transition-colors';
+
+  const hasCustomAvatar = Boolean(
+    userProfile.avatarUrl ||
+    userProfile.avatarType === 'custom' ||
+    userProfile.avatarType === 'upload'
+  );
+
+  const handleRestoreDefaultAvatar = async () => {
+    soundService.playClick();
+    if (user?.uid) {
+      AvatarStorageService.clearLocalAvatar(user.uid);
+    }
+    updateProfile({
+      avatarUrl: user?.photoURL || undefined,
+      avatarType: user?.photoURL ? 'google' : 'default',
+      avatarConfig: undefined,
+    });
+    if (updateUserPhoto) {
+      await updateUserPhoto(user?.photoURL || null);
+    }
+    addToast({
+      title: 'Avatar Restored',
+      message: user?.photoURL ? 'Restored to Google profile photo.' : 'Restored to default initials.',
+      type: 'info',
+    });
+  };
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
@@ -149,7 +180,96 @@ export default function SettingsPage() {
 
       {/* Profile Form */}
       <form onSubmit={handleSaveProfile} className="p-6 rounded-2xl bg-white border border-[#E7E0D5] shadow-sm space-y-4">
-        <h3 className="text-base font-bold text-[#403B34] tracking-tight">Personal Identity</h3>
+        <div>
+          <h3 className="text-base font-bold text-[#403B34] tracking-tight">Personal Identity</h3>
+          <p className="text-xs text-[#756E64] mt-0.5">
+            Your name, avatar appearance, and workspace role across Taskora.
+          </p>
+        </div>
+
+        {/* Profile Avatar Customization Card */}
+        <div className="p-4 sm:p-5 rounded-2xl bg-[#FBF9F5] border border-[#E7E0D5] flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-5">
+          <div className="relative group shrink-0">
+            <UserAvatar
+              photoUrl={userProfile.avatarUrl || user?.photoURL}
+              name={name || user?.displayName}
+              size="xl"
+              ringClass="ring-3 ring-white shadow-sm"
+            />
+            <button
+              type="button"
+              onClick={() => openAvatarModal()}
+              className="absolute -bottom-1 -right-1 p-1.5 rounded-full bg-[#718368] text-white hover:bg-[#5F7157] transition-all shadow-sm hover:scale-110 cursor-pointer"
+              aria-label="Change profile picture"
+              title="Change picture"
+            >
+              <Camera className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <div className="flex-1 text-center sm:text-left min-w-0">
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-1.5">
+              <span className="text-sm font-bold text-[#403B34] truncate">
+                Profile Avatar
+              </span>
+
+              {/* Status indicator badge */}
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#EAF0E5] text-[#557B5C] border border-[#718368]/20">
+                {userProfile.avatarType === 'custom' ? (
+                  <>
+                    <Sparkles className="w-3 h-3 text-[#718368]" />
+                    <span>Custom Illustrated Avatar</span>
+                  </>
+                ) : userProfile.avatarType === 'upload' ? (
+                  <>
+                    <Camera className="w-3 h-3 text-[#718368]" />
+                    <span>Uploaded Photo</span>
+                  </>
+                ) : user?.photoURL ? (
+                  <>
+                    <Check className="w-3 h-3 text-[#718368]" />
+                    <span>Google Account Photo</span>
+                  </>
+                ) : (
+                  <>
+                    <User className="w-3 h-3 text-[#718368]" />
+                    <span>Default Initials</span>
+                  </>
+                )}
+              </span>
+            </div>
+
+            <p className="text-xs text-[#756E64] leading-relaxed max-w-md">
+              Create a custom illustrated vector avatar or upload a personal photo from your device.
+            </p>
+
+            {/* Avatar action buttons */}
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5 mt-3">
+              <Button
+                variant="primary"
+                size="sm"
+                type="button"
+                onClick={() => openAvatarModal()}
+                className="gap-1.5"
+              >
+                <Camera className="w-3.5 h-3.5" />
+                <span>Change Picture</span>
+              </Button>
+
+              {hasCustomAvatar && (
+                <button
+                  type="button"
+                  onClick={handleRestoreDefaultAvatar}
+                  className="px-3 py-1.5 rounded-xl bg-white hover:bg-[#F5E6E5] text-[#B95750] border border-[#D9D0C3] hover:border-[#B95750]/40 text-xs font-semibold shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-[0.98]"
+                  title="Remove custom picture and restore default"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Restore Default</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
@@ -182,8 +302,8 @@ export default function SettingsPage() {
         </div>
 
         <div className="pt-3 border-t border-[#E7E0D5] flex justify-end">
-          <Button type="submit" variant="primary" size="sm">
-            Save Profile Changes
+          <Button variant="primary" size="sm" type="submit">
+            <span>Save Profile Changes</span>
           </Button>
         </div>
       </form>

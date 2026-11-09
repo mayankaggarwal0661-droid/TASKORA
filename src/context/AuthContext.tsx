@@ -64,6 +64,7 @@ interface AuthContextValue {
   signUpWithEmail: (email: string, password: string, displayName?: string) => Promise<AuthResult>;
   sendPasswordReset: (email: string) => Promise<AuthResult>;
   signOutUser: () => Promise<AuthResult>;
+  updateUserPhoto: (photoURL: string | null) => Promise<void>;
   continueAsGuest: () => void;
   clearError: () => void;
   saveFirebaseConfig: (config: FirebaseConfigOptions) => void;
@@ -245,10 +246,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
     }
 
+    // Safety fallback: ensure loading never hangs indefinitely if Firebase takes too long
+    const authTimeout = setTimeout(() => {
+      setLoading(false);
+    }, 2500);
+
     // onAuthStateChanged is the authoritative source of truth for session status
     const unsubscribe = onAuthStateChanged(
       auth,
       (fbUser) => {
+        clearTimeout(authTimeout);
         if (fbUser) {
           setFirebaseUser(fbUser);
           setUser(mapFirebaseUser(fbUser));
@@ -274,6 +281,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
       },
       (err) => {
+        clearTimeout(authTimeout);
         console.error('Taskora auth observer error:', err);
         setError(formatAuthError(err));
         setLoading(false);
@@ -281,6 +289,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
 
     return () => {
+      clearTimeout(authTimeout);
       unsubscribe();
     };
   }, []);
@@ -517,7 +526,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push('/dashboard');
   }, [router]);
 
-  // 8. Firebase configuration helpers
+  // 8. User Profile Photo update
+  const updateUserPhoto = useCallback(async (photoURL: string | null) => {
+    setUser((prev) => (prev ? { ...prev, photoURL } : prev));
+    if (auth.currentUser) {
+      try {
+        await updateProfile(auth.currentUser, { photoURL });
+      } catch (err) {
+        console.warn('[Taskora Auth] User photo update warning:', err);
+      }
+    }
+  }, []);
+
+  // 9. Firebase configuration helpers
   const saveFirebaseConfig = useCallback((config: FirebaseConfigOptions) => {
     saveCustomFirebaseConfig(config);
     setIsConfiguredState(isFirebaseConfigured());
@@ -554,6 +575,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signUpWithEmail,
         sendPasswordReset,
         signOutUser,
+        updateUserPhoto,
         continueAsGuest,
         clearError,
         saveFirebaseConfig,

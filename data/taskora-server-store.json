@@ -1,5 +1,126 @@
 {
-  "subscriptions": [],
+  "subscriptions": [
+    {
+      "id": "sub-2e1b2b773fb26f33",
+      "userId": "usr-mvxppus2-brm7asp",
+      "endpoint": "https://fcm.googleapis.com/fcm/send/dA0ssFDHmzo:APA91bFAqYwFo2s3HqM1xo6dRAoVovKedNHUIj8fuIeDIYkZb9fMXQHaTlQQIOPBrdz7suSb3DM44kft1QaYt-nuNn_lR4zAM9Z3gOQwJo1gv-MmGYhoCcmv7A64t6Vz8GIUOZDkfzQ0",
+      "keys": {
+        "p256dh": "BGzOsaBygYoxYCoHtC05PbQvtpi3ixoe49auqQPr5ECGnQTL440RwDM2kifQDCAUJBSQHBQLqPQWbLEv9OWixas",
+        "auth": "puYAGChmx64ySCPsQbyikA"
+      },
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+      "deviceName": "Google Chrome on Windows",
+      "deviceType": "desktop",
+      "createdAt": "2026-11-01T10:54:15.487Z",
+      "lastUsedAt": "2026-11-01T10:54:15.487Z",
+      "isActive": true
+    },
+    {
+      "id": "sub-53de97fc1b6149c1",
+      "userId": "usr-mvxppus2-brm7asp",
+      "endpoint": "https://fcm.googleapis.com/fcm/send/cgqhQM2vOh4:APA91bGOijbs1oAwqy0D9r5GxWabM-7mfs_ymFGbCfa48Fb130KCHEjKk2Zv01nrcUaYiz2kIK9DoHN8F8kKs00cYdiQFH9g_i3RB05P7py0uNEWU4cd-MhqGNMqfF8Nx9wpnMmqfxJj",
+      "keys": {
+        "p256dh": "BDk04ziODJ86l8JcYX9pzLyL2UeI3pc-uIbT6H8YpdX0W7N30U9XFrn_eJa5ELfamlKFFHMFKFd7TEpJBYVWLHc",
+        "auth": "KJUD8d0HrLEysW-76QL_3g"
+      },
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+      "deviceName": "Google Chrome on Windows",
+      "deviceType": "desktop",
+      "createdAt": "2026-11-01T10:54:15.592Z",
+      "lastUsedAt": "2026-11-01T10:54:15.592Z",
+      "isActive": true
+    },
+    {
+      "id": "sub-3033a83fcde1b150",
+      "userId": "usr-mvxppus2-brm7asp",
+      "endpoint": "https://fcm.googleapis.com/fcm/send/eST1P1WG47Q:APA91bFvrBMVKdWJ2W3JWiOEDOA2iCaNmYkkFqLrZYuBG1mrLax3TNvrKeAV0tnnzREYf-L4lCkne4Vmgc3qElkfYjaqDFQmNPR2jMOEFE0EN2MjWlQ7bQX8hppkequYtDbgjS_KpVmT",
+      "keys": {
+        "p256dh": "BM_-ekJQS6wv7prgXrauk73U5V68doUcrbZwkVnIO-77ySY5TdUgeyXq6YDWXh9yNHVZDAQRhNIdMuUsSTXVFHw",
+        "auth": "zZezOgBOSkK7zgMGChDxeQ"
+      },
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+      "deviceName": "Google Chrome on Windows",
+      "deviceType": "desktop",
+      "createdAt": "2026-11-01T10:54:15.871Z",
+      "lastUsedAt": "2026-11-01T10:54:18.963Z",
+      "isActive": false
+    },
+    {
+      "id": "sub-06a338da70e9b983",
+      "userId": "usr-mvxppus2-brm7asp",
+      "endpoint": "https://fcm.googleapis.com/fcm/send/dX2RbtE_1Go:APA91bEDNq2JdCjsoVnaSv3uOssV9bk74v95a6YxLMOK-tYcpnkUsGVHF9mMpCs9ZXhCQoN7c4z6ZzFWYlPrL1DFObvutNi_SvT2Jc01euVg-tZBsygOw9c2JR0Ai4ouApvcgsr2okcj",
+      "keys": {
+        "p256dh": "BNPCVlN6CsS56JqZXAd_rU_Nivz7m5Y7ArDu_in40lDJGSZHVS3cVh43OxHkbgGhFTxRmTYQWsW67qhorg_1too",
+        "auth": "qlf2tgdshMXUlAyIf1P-2w"
+      },
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+      "deviceName": "Google Chrome on Windows",
+      "deviceType": "desktop",
+      "createdAt": "2026-11-01T10:54:25.341Z",
+      "lastUsedAt": "2026-11-01T10:54:26.213Z",
+      "isActive": false
+    },
+    {
+      "id": "sub-b7385dce7e5cec20",
+      "userId": "26z0cb8rFBQwpEvzhcPliG0VoeQ2",
+      "endpoint": "https://fcm.googleapis.com/fcm/send/ekopmrT_THQ:APA91bE5FKmBxVZ5Jks0UNHNh9Vf5J_RbW0TCtEIVQgm6oIT6Ud9CLp5LgJYfIMEBwbBBU8x6daEkVqBzYDNon3B79tpIebjRu09DdNJL5_9I-SmJD0C-aLKtrFdrfZ1aqooUYxK0tgO",
+      "keys": {
+        "p256dh": "BHQw4H1YsjpGk3qvK4BilV7SQNXr13H4zxcWTuPUezVfDbFeE-YlrdYQNtkwC0LAA3pGpDe8AZiTX3ZXmLf_Cgc",
+        "auth": "ms8Xd4FzdiCP1RYcAK9v4w"
+      },
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+      "deviceName": "Google Chrome on Windows",
+      "deviceType": "desktop",
+      "createdAt": "2026-11-01T11:49:30.136Z",
+      "lastUsedAt": "2026-11-01T11:49:30.136Z",
+      "isActive": true
+    },
+    {
+      "id": "sub-ad08509cf7f0b088",
+      "userId": "26z0cb8rFBQwpEvzhcPliG0VoeQ2",
+      "endpoint": "https://fcm.googleapis.com/fcm/send/c9D-NQ-B3EA:APA91bFT-VxAjg0gtPAblUdjAtq6VX2mM4Bcdq9ElDpmYvBZNX5ZxrLrdNFvftP4JO5BStmxPROgGd10nwiB94-7gvUV5-fYf_r1Bt0RXuUiuuf76v97Q5huVrv1kVsZUdLG2eDdQlOc",
+      "keys": {
+        "p256dh": "BKkWGRvct8583Ttv1ACuvoG7aYnL-GXIRG3mFdax20wm2xwLq_6mWO25z3ESDahXgF0wHIW8LHFjHWPxGHTxPs0",
+        "auth": "qqlWVmCLKWITVhR6dLw4ag"
+      },
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+      "deviceName": "Google Chrome on Windows",
+      "deviceType": "desktop",
+      "createdAt": "2026-11-01T11:49:30.350Z",
+      "lastUsedAt": "2026-11-01T11:49:30.350Z",
+      "isActive": true
+    },
+    {
+      "id": "sub-b91d75cb32a85d72",
+      "userId": "26z0cb8rFBQwpEvzhcPliG0VoeQ2",
+      "endpoint": "https://fcm.googleapis.com/fcm/send/fPBXLAoY4fE:APA91bFOn4z3YaDroQods29f1Q44pNtGqNbX5rD1l7N9kzhVd3vF_N9ablfcaBu2hU33P6-jt-tWADiaV9ZNmID65TmbvHQJWTQ9ATDY-YAXq_B-3H-z2CJnXgjTMq8WKYByzJsWj0Kh",
+      "keys": {
+        "p256dh": "BOl23fkR-1p_pGuhUhl103a6cvQoDLgHQ-CHFwipqzkrm18O5zeiqmMHZPAoDdzHDgQMNCtqHcEmdLxT2WW9uxY",
+        "auth": "vehZlZzrCg4vGUJdxRVhrQ"
+      },
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+      "deviceName": "Google Chrome on Windows",
+      "deviceType": "desktop",
+      "createdAt": "2026-11-01T11:49:30.650Z",
+      "lastUsedAt": "2026-11-01T11:49:30.650Z",
+      "isActive": true
+    },
+    {
+      "id": "sub-03b88ae2d294cf1f",
+      "userId": "26z0cb8rFBQwpEvzhcPliG0VoeQ2",
+      "endpoint": "https://fcm.googleapis.com/fcm/send/ehUODk6Rmk0:APA91bEOgNWKonwmO6ZGu0tysTQfp9LZTjkPgLrI1IyeSYZUhtB7Lg1jOnyr3Wb8TRDeLaus8vvA4lqH6uU0u8QekzVZlSP997wDRbcWL-cVjXlUTkmvYBZgfkqvAodu64r9YPCm3FB_",
+      "keys": {
+        "p256dh": "BC5Ko0degbOnp7B2RnY9T8c6uryS2l53YMhJyf9V9rcid9PWA1Y3Rh3MxopXmbqbndjn-T1VeiNniipqO-BDAJ4",
+        "auth": "N76T47W5tbjTPgXtAdkrIw"
+      },
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+      "deviceName": "Google Chrome on Windows",
+      "deviceType": "desktop",
+      "createdAt": "2026-11-01T11:49:30.692Z",
+      "lastUsedAt": "2026-11-01T11:49:30.692Z",
+      "isActive": true
+    }
+  ],
   "reminders": [],
   "deliveryLog": []
 }

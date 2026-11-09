@@ -17,24 +17,25 @@ import {
   Settings,
   ShieldCheck,
   Sparkles,
-  Lock,
+  Camera,
 } from 'lucide-react';
 import { useScrollDirection } from '@/hooks/useScrollDirection';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 
 export function Navbar({ onMobileMenuToggle }: { onMobileMenuToggle?: () => void }) {
-  const { tasks, openCommandPalette, openTaskModal, notificationSettings, userProfile, todayStr } = useTaskora();
+  const { tasks, openCommandPalette, openTaskModal, openAvatarModal, notificationSettings, userProfile, todayStr } = useTaskora();
   const { user, isGuest, signOutUser, openGuestLock } = useAuth();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isFocusWithin, setIsFocusWithin] = useState(false);
   const { isVisible: isScrollVisible } = useScrollDirection({ thresholdDown: 8, thresholdUp: 6, topOffset: 24 });
   const menuRef = useRef<HTMLDivElement>(null);
+  const avatarButtonRef = useRef<HTMLButtonElement>(null);
   const nextUp = ScheduleService.getNextUpTask(tasks, todayStr);
 
   const shouldShowNavbar = isScrollVisible || isProfileOpen || isFocusWithin;
 
   const displayName = user?.displayName || userProfile?.name || (isGuest ? 'Guest Explorer' : 'Taskora Member');
   const displayEmail = user?.email || (isGuest ? 'Guest preview session' : userProfile?.email || 'workspace@taskora.io');
-  const avatarLetter = (displayName.charAt(0) || 'T').toUpperCase();
   const activeTasksCount = tasks.filter(t => t.status !== 'completed').length;
 
   useEffect(() => {
@@ -43,11 +44,21 @@ export function Navbar({ onMobileMenuToggle }: { onMobileMenuToggle?: () => void
         setIsProfileOpen(false);
       }
     };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsProfileOpen(false);
+        avatarButtonRef.current?.focus();
+      }
+    };
+
     if (isProfileOpen) {
       document.addEventListener('mousedown', handleOutsideClick);
+      document.addEventListener('keydown', handleKeyDown);
     }
     return () => {
       document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isProfileOpen]);
 
@@ -167,71 +178,104 @@ export function Navbar({ onMobileMenuToggle }: { onMobileMenuToggle?: () => void
           <span className="hidden sm:inline">Add Task</span>
         </button>
 
-        {/* Profile Avatar & Glass Popover Menu */}
+        {/* Profile Avatar & Account Menu */}
         <div className="relative" ref={menuRef}>
           <button
+            ref={avatarButtonRef}
             type="button"
             onClick={() => setIsProfileOpen(prev => !prev)}
-            className="flex items-center gap-2 pl-1 group cursor-pointer focus:outline-hidden"
+            className="flex items-center gap-2 pl-1 group cursor-pointer rounded-full focus:outline-hidden focus-visible:ring-2 focus-visible:ring-[#718368]/40"
             aria-expanded={isProfileOpen}
+            aria-haspopup="menu"
             aria-label="User account menu"
           >
-            <div className="w-8 h-8 rounded-full ring-2 ring-[#E7E0D5] hover:ring-[#718368]/60 overflow-hidden bg-[#EAF0E5] flex items-center justify-center text-xs font-bold text-[#718368] transition-all shadow-xs">
-              {user?.photoURL ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={user.photoURL} alt={displayName} className="w-full h-full object-cover" />
-              ) : (
-                <span suppressHydrationWarning>{avatarLetter}</span>
-              )}
-            </div>
+            <UserAvatar
+              photoUrl={userProfile?.avatarUrl || user?.photoURL}
+              name={displayName}
+              size="sm"
+              ringClass="ring-2 ring-[#E7E0D5] group-hover:ring-[#718368]/60 transition-all shadow-xs"
+            />
           </button>
 
           {isProfileOpen && (
-            <div className="absolute right-0 mt-3 w-72 glass-surface-elevated rounded-2xl border border-[#E7E0D5]/90 shadow-2xl p-3.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+            <div
+              id="profile-dropdown-menu"
+              role="menu"
+              aria-label="Account options"
+              className="absolute right-0 top-full mt-2 w-72 sm:w-80 max-w-[calc(100vw-2rem)] bg-white rounded-2xl border border-[#E7E0D5] shadow-xl shadow-[#403B34]/10 p-3.5 z-50 animate-in fade-in zoom-in-95 duration-150"
+            >
               {/* User Identity info */}
-              <div className="flex items-center gap-3 pb-3 border-b border-[#E7E0D5]/80">
-                <div className="w-10 h-10 rounded-full bg-[#EAF0E5] text-[#718368] flex items-center justify-center font-bold text-sm shrink-0 overflow-hidden ring-1 ring-[#718368]/30">
-                  {user?.photoURL ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={user.photoURL} alt={displayName} className="w-full h-full object-cover" />
-                  ) : (
-                    <span suppressHydrationWarning>{avatarLetter}</span>
-                  )}
-                </div>
+              <div className="flex items-center gap-3 pb-3 border-b border-[#E7E0D5]">
+                <UserAvatar
+                  photoUrl={userProfile?.avatarUrl || user?.photoURL}
+                  name={displayName}
+                  size="md"
+                  ringClass="ring-1 ring-[#718368]/30"
+                />
                 <div className="flex-1 min-w-0" suppressHydrationWarning>
-                  <p className="text-xs font-bold text-[#403B34] truncate" suppressHydrationWarning>{displayName}</p>
-                  <p className="text-[11px] text-[#756E64] truncate" suppressHydrationWarning>{displayEmail}</p>
-                  <div className="mt-1 flex items-center gap-1" suppressHydrationWarning>
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#718368]" />
-                    <span className="text-[10px] font-semibold text-[#718368]" suppressHydrationWarning>
+                  <p
+                    className="text-xs font-bold text-[#403B34] truncate"
+                    title={displayName}
+                    suppressHydrationWarning
+                  >
+                    {displayName}
+                  </p>
+                  <p
+                    className="text-[11px] text-[#756E64] truncate font-mono mt-0.5"
+                    title={displayEmail}
+                    suppressHydrationWarning
+                  >
+                    {displayEmail}
+                  </p>
+                  <div className="mt-1 flex items-center gap-1.5" suppressHydrationWarning>
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#718368] shrink-0" />
+                    <span
+                      className="text-[10px] font-semibold text-[#718368] truncate"
+                      suppressHydrationWarning
+                    >
                       {user ? 'Google Connected' : 'Guest Workspace'}
                     </span>
                   </div>
                 </div>
               </div>
 
+              {/* Change Profile Picture Action Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsProfileOpen(false);
+                  openAvatarModal();
+                }}
+                className="w-full mt-2.5 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-semibold text-[#557B5C] bg-[#EAF0E5] hover:bg-[#D9E8D3] border border-[#718368]/20 transition-all cursor-pointer shadow-2xs group"
+              >
+                <Camera className="w-3.5 h-3.5 text-[#718368] group-hover:scale-110 transition-transform" />
+                <span>Change Profile Picture</span>
+              </button>
+
               {/* Quick links */}
               <div className="py-2 space-y-1">
                 <Link
                   href="/settings"
+                  role="menuitem"
                   onClick={() => setIsProfileOpen(false)}
-                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-[#403B34] hover:bg-[#F0EBE2] transition-colors"
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-[#403B34] hover:bg-[#F0EBE2] hover:text-[#403B34] transition-colors group"
                 >
-                  <Settings className="w-3.5 h-3.5 text-[#756E64]" />
+                  <Settings className="w-4 h-4 text-[#756E64] group-hover:text-[#718368] transition-colors shrink-0" />
                   <span>Profile & Appearance</span>
                 </Link>
                 <Link
                   href="/notifications"
+                  role="menuitem"
                   onClick={() => setIsProfileOpen(false)}
-                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-[#403B34] hover:bg-[#F0EBE2] transition-colors"
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-[#403B34] hover:bg-[#F0EBE2] hover:text-[#403B34] transition-colors group"
                 >
-                  <ShieldCheck className="w-3.5 h-3.5 text-[#756E64]" />
+                  <ShieldCheck className="w-4 h-4 text-[#756E64] group-hover:text-[#718368] transition-colors shrink-0" />
                   <span>Security & Notifications</span>
                 </Link>
               </div>
 
               {/* Account Actions */}
-              <div className="pt-2 border-t border-[#E7E0D5]/80 space-y-1.5">
+              <div className="pt-2 border-t border-[#E7E0D5] space-y-1.5">
                 {isGuest && (
                   <button
                     type="button"
@@ -241,20 +285,21 @@ export function Navbar({ onMobileMenuToggle }: { onMobileMenuToggle?: () => void
                     }}
                     className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold text-white bg-[#718368] hover:bg-[#5F7157] transition-all cursor-pointer shadow-2xs"
                   >
-                    <Sparkles className="w-3.5 h-3.5 text-white" />
+                    <Sparkles className="w-3.5 h-3.5 text-white shrink-0" />
                     <span>Save Account / Sign In</span>
                   </button>
                 )}
 
                 <button
                   type="button"
+                  role="menuitem"
                   onClick={() => {
                     setIsProfileOpen(false);
                     signOutUser();
                   }}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-[#B95750] hover:bg-[#F5E6E5] transition-colors cursor-pointer"
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-[#B95750] hover:bg-[#F5E6E5] transition-colors cursor-pointer group"
                 >
-                  <LogOut className="w-3.5 h-3.5 text-[#B95750]" />
+                  <LogOut className="w-4 h-4 text-[#B95750] shrink-0 transition-transform group-hover:-translate-x-0.5" />
                   <span>{isGuest ? 'Exit Guest Mode' : 'Sign Out of Taskora'}</span>
                 </button>
               </div>

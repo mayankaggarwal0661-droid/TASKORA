@@ -6,6 +6,7 @@ import { useTaskora } from '@/context/TaskoraContext';
 import { useAuth } from '@/context/AuthContext';
 import { LeadTimeOption } from '@/types/notification';
 import { Button } from '@/components/ui/Button';
+import BellToggle from '@/components/ui/BellToggle';
 import { PwaInstallPrompt } from '@/components/pwa/PwaInstallPrompt';
 import {
   isWebPushSupported,
@@ -18,7 +19,6 @@ import {
 } from '@/features/notifications/web-push-client';
 import {
   Bell,
-  CheckCircle2,
   AlertTriangle,
   Clock,
   Moon,
@@ -354,22 +354,22 @@ export default function NotificationSettingsPage() {
           </div>
 
           <div className="shrink-0 flex items-center gap-2">
-            {!isPushActive && !isDenied && (
-              <Button variant="primary" size="sm" onClick={handleTogglePush}>
-                <CheckCircle2 className="w-4 h-4 mr-1.5" />
-                Enable Push Notifications
-              </Button>
-            )}
-            {isPushActive && (
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={handleTogglePush}
-                className="text-xs text-[#756E64]"
-              >
-                Unsubscribe This Device
-              </Button>
-            )}
+            <BellToggle
+              offLabel="Enable Push Alerts"
+              onLabel="Device Subscribed"
+              pressed={isPushActive}
+              disabled={isDenied}
+              size="md"
+              count={serverStatus?.pendingRemindersCount || 0}
+              badge={true}
+              waves={true}
+              color="#557B5C"
+              background="#EAF0E5"
+              onColor="#ffffff"
+              onBackground="#718368"
+              badgeColor="#B88762"
+              onChange={handleTogglePush}
+            />
           </div>
         </div>
       </div>

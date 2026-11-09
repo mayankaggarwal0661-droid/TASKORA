@@ -152,7 +152,7 @@ export default function RoutinesPage() {
           <div className="mt-5">
             <Button variant="primary" size="sm" onClick={handleOpenModal}>
               <Plus className="w-4 h-4 mr-1" />
-              Create First Routine
+              <span>Create First Routine</span>
             </Button>
           </div>
         </div>
@@ -382,7 +382,7 @@ export default function RoutinesPage() {
               Cancel
             </Button>
             <Button variant="primary" size="sm" type="submit">
-              Save Routine
+              <span>Save Routine</span>
             </Button>
           </div>
         </form>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
@@ -29,7 +29,7 @@ import {
   Calendar,
   Zap,
 } from 'lucide-react';
-import { WelcomeHeroSceneLazy } from '@/components/welcome/WelcomeHeroSceneLazy';
+import { DitherVeil } from '@/components/ui/DitherVeil';
 
 type AuthMethod = 'menu' | 'email';
 type EmailMode = 'signin' | 'signup' | 'forgot';
@@ -55,6 +55,7 @@ export default function WelcomePage() {
   const [authMethod, setAuthMethod] = useState<AuthMethod>('menu');
   const [emailMode, setEmailMode] = useState<EmailMode>('signin');
   const [isTourMode, setIsTourMode] = useState(false);
+  const heroSectionRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -163,7 +164,7 @@ export default function WelcomePage() {
   const scrollToAuth = () => {
     const card = document.getElementById('auth-card');
     if (card) {
-      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       // Subtle pulse highlight
       card.classList.add('ring-2', 'ring-[#718368]/40');
       setTimeout(() => {
@@ -174,32 +175,72 @@ export default function WelcomePage() {
 
   return (
     <div className="min-h-screen bg-[#F7F4EE] text-[#403B34] flex flex-col justify-between relative overflow-x-hidden selection:bg-[#718368]/20">
-      {/* ─── Layer 1 & 2: Atmospheric Ambient Background Glows ──────────────── */}
-      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden" aria-hidden="true">
-        {/* Soft Sage Top-Left Radial Glow */}
-        <div className="absolute -top-40 -left-20 w-[680px] h-[550px] bg-[#EAF0E5]/80 rounded-full blur-[140px]" />
-        {/* Warm Ivory / Peach Bottom-Right Ambient */}
-        <div className="absolute top-1/3 -right-32 w-[620px] h-[600px] bg-[#F4E9DE]/75 rounded-full blur-[150px]" />
-        {/* Subtle Central Accent Lighting */}
-        <div className="absolute bottom-10 left-1/3 w-[500px] h-[450px] bg-[#718368]/10 rounded-full blur-[130px]" />
-      </div>
 
-      {/* ─── Navigation Header ──────────────────────────────────────────────── */}
-      <header className="relative z-20 px-6 sm:px-12 py-5 sm:py-6 flex items-center justify-between border-b border-[#E7E0D5]/50 backdrop-blur-xs">
+
+      {/* ─── Hero Section: Full Viewport 100vw × 100vh Edge-to-Edge with Exclusive DitherVeil ─── */}
+      <section
+        ref={heroSectionRef}
+        className="relative w-full min-h-screen min-h-[100svh] flex flex-col justify-between bg-[#F7F4EE]"
+      >
+        {/* Layer 1 (Lowest, z-0): Base Warm Neutral Canvas */}
+        <div className="absolute inset-0 w-full h-full bg-[#F7F4EE] pointer-events-none z-0" aria-hidden="true" />
+
+        {/* Layer 2 (Above base canvas, z-[1]): DitherVeil Interactive Canvas Effect */}
+        <div className="absolute inset-0 w-full h-full pointer-events-none z-[1] overflow-hidden" aria-hidden="true">
+          <DitherVeil
+            src="/workspace-hero.jpg"
+            fit="cover"
+            pattern="floyd"
+            palette="duotone"
+            pixelSize={2}
+            inkColor="#718368"
+            paperColor="#F7F4EE"
+            rimColor="#B88762"
+            rim={0.1}
+            revealRadius={220}
+            softness={0.65}
+            linger={0.8}
+            contrast={1.15}
+            brightness={0}
+            clickBurst={false}
+            wander={false}
+            targetRef={heroSectionRef}
+            className="w-full h-full"
+            fallback={
+              <div
+                className="w-full h-full bg-[#F7F4EE]"
+                style={{
+                  backgroundImage: 'radial-gradient(#718368 1.2px, transparent 1.2px)',
+                  backgroundSize: '16px 16px',
+                  opacity: 0.4,
+                }}
+              />
+            }
+          />
+        </div>
+
+        {/* Layer 3 (Above effect, below content, z-[2]): Subtle soft readability wash */}
+        <div
+          className="absolute inset-0 bg-gradient-to-r from-[#F7F4EE]/65 via-[#F7F4EE]/25 to-transparent pointer-events-none z-[2]"
+          aria-hidden="true"
+        />
+
+        {/* ─── Navigation Header Layered Above Hero Background ─── */}
+        <header className="relative z-20 px-6 sm:px-12 py-4 flex items-center justify-between border-b border-[#E7E0D5]/50 backdrop-blur-xs">
         <Link href="/" className="flex items-center gap-3 group">
-          <div className="w-10 h-10 rounded-2xl bg-[#718368] flex items-center justify-center text-white shadow-sm group-hover:bg-[#5F7157] group-hover:scale-105 transition-all duration-300">
-            <Leaf className="w-5 h-5 transition-transform duration-300 group-hover:rotate-12" />
+          <div className="w-9 h-9 rounded-2xl bg-[#718368] flex items-center justify-center text-white shadow-sm group-hover:bg-[#5F7157] group-hover:scale-105 transition-all duration-300">
+            <Leaf className="w-4.5 h-4.5 transition-transform duration-300 group-hover:rotate-12" />
           </div>
           <div className="flex flex-col">
-            <span className="font-extrabold text-xl tracking-tight text-[#403B34] leading-tight">Taskora</span>
-            <span className="text-[10px] font-semibold tracking-wider uppercase text-[#756E64]/80">Ecosystem</span>
+            <span className="font-extrabold text-lg tracking-tight text-[#403B34] leading-tight">Taskora</span>
+            <span className="text-[9px] font-semibold tracking-wider uppercase text-[#756E64]/80">Ecosystem</span>
           </div>
         </Link>
 
         <div className="flex items-center gap-2 sm:gap-3">
           <Link
             href="/"
-            className="inline-flex items-center gap-2 text-xs font-semibold text-[#756E64] hover:text-[#403B34] px-3.5 py-2 rounded-xl hover:bg-[#F0EBE2] border border-transparent hover:border-[#E7E0D5] transition-all duration-200"
+            className="inline-flex items-center gap-2 text-xs font-semibold text-[#756E64] hover:text-[#403B34] px-3 py-1.5 rounded-xl hover:bg-[#F0EBE2] border border-transparent hover:border-[#E7E0D5] transition-all duration-200"
           >
             <Compass className="w-4 h-4 text-[#718368]" />
             <span className="hidden sm:inline">Product Tour</span>
@@ -209,7 +250,7 @@ export default function WelcomePage() {
           <button
             type="button"
             onClick={continueAsGuest}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#403B34] bg-white hover:bg-[#FBF9F5] px-3.5 py-2 rounded-xl border border-[#D9D0C3] hover:border-[#718368] shadow-2xs hover:shadow-xs transition-all duration-200 cursor-pointer"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#403B34] bg-white hover:bg-[#FBF9F5] px-3.5 py-1.5 rounded-xl border border-[#D9D0C3] hover:border-[#718368] shadow-2xs hover:shadow-xs transition-all duration-200 cursor-pointer"
           >
             <span>Guest Access</span>
             <ArrowRight className="w-3.5 h-3.5 text-[#718368]" />
@@ -218,41 +259,37 @@ export default function WelcomePage() {
       </header>
 
       {/* ─── Hero Section: Split Composition ────────────────────────────────── */}
-      <main className="relative z-10 flex-1 max-w-7xl mx-auto w-full px-6 sm:px-10 lg:px-12 py-8 sm:py-12 lg:py-16">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center">
+        {/* ─── Hero Content ─── */}
+        <div className="relative z-20 flex-1 flex items-center max-w-7xl mx-auto w-full px-6 sm:px-10 lg:px-12 py-4 sm:py-6">
+          <div className="relative z-20 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center w-full">
           {/* ── LEFT COLUMN: Brand Manifesto, Value Prop & Direct CTAs ──────── */}
-          <motion.div
-            initial={{ opacity: 0, y: 22 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-            className="lg:col-span-7 flex flex-col justify-center text-left"
-          >
+          <div className="lg:col-span-7 flex flex-col justify-center text-left relative z-20">
             {/* Ambient Category Pill */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#EAF0E5] text-[#557B5C] border border-[#718368]/20 text-xs font-semibold mb-6 shadow-2xs w-fit">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#EAF0E5] text-[#557B5C] border border-[#718368]/20 text-xs font-semibold mb-4 shadow-2xs w-fit">
               <span className="w-2 h-2 rounded-full bg-[#718368] animate-pulse" />
               <span>A Calm, Living Productivity Universe</span>
             </div>
 
             {/* Headline */}
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-[#403B34] tracking-tight leading-[1.12]">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#403B34] tracking-tight leading-[1.12]">
               Your day, with{' '}
               <span className="text-[#718368] italic font-serif relative inline-block">
                 more intention.
-                <span className="absolute bottom-1.5 left-0 w-full h-[3px] bg-[#718368]/25 rounded-full" />
+                <span className="absolute bottom-1.5 left-0 w-full h-[3px] bg-[#718368]/30 rounded-full" />
               </span>
             </h1>
 
             {/* Subtitle */}
-            <p className="text-base sm:text-lg text-[#756E64] mt-5 sm:mt-6 leading-relaxed max-w-2xl font-normal">
+            <p className="text-sm sm:text-base text-[#756E64] mt-3 sm:mt-4 leading-relaxed max-w-2xl font-normal">
               Bring tasks, habits, and focused work together in one serene workspace. Plan with clarity, sustain momentum, and protect your deepest attention without artificial friction.
             </p>
 
             {/* Dual CTAs */}
-            <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5 sm:gap-4 max-w-md sm:max-w-none">
+            <div className="mt-6 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-3.5 max-w-md sm:max-w-none">
               <button
                 type="button"
                 onClick={scrollToAuth}
-                className="px-7 py-3.5 rounded-2xl bg-[#718368] hover:bg-[#5F7157] text-white font-bold text-sm shadow-md hover:shadow-lg shadow-[#718368]/20 transition-all duration-200 flex items-center justify-center gap-2 group cursor-pointer active:scale-[0.99]"
+                className="px-6 py-3 rounded-2xl bg-[#718368] hover:bg-[#5F7157] text-white font-bold text-xs sm:text-sm shadow-md hover:shadow-lg shadow-[#718368]/20 transition-all duration-200 flex items-center justify-center gap-2 group cursor-pointer active:scale-[0.99]"
               >
                 <span>Get Started — It&apos;s Free</span>
                 <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" />
@@ -261,7 +298,7 @@ export default function WelcomePage() {
               <button
                 type="button"
                 onClick={continueAsGuest}
-                className="px-6 py-3.5 rounded-2xl bg-white hover:bg-[#FBF9F5] border border-[#D9D0C3] hover:border-[#718368] text-[#403B34] font-semibold text-sm shadow-2xs hover:shadow-sm transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
+                className="px-5 py-3 rounded-2xl bg-white hover:bg-[#FBF9F5] border border-[#D9D0C3] hover:border-[#718368] text-[#403B34] font-semibold text-xs sm:text-sm shadow-2xs hover:shadow-sm transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
               >
                 <span>Explore as Guest</span>
                 <Compass className="w-4 h-4 text-[#756E64]" />
@@ -269,10 +306,10 @@ export default function WelcomePage() {
             </div>
 
             {/* 3 Compact Benefit Badges */}
-            <div className="mt-10 sm:mt-12 pt-8 border-t border-[#E7E0D5]/80 grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-xl bg-[#EAF0E5] text-[#557B5C] flex items-center justify-center shrink-0 mt-0.5">
-                  <Check className="w-4 h-4 text-[#718368]" />
+            <div className="mt-7 pt-5 border-t border-[#E7E0D5]/80 grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="flex items-start gap-2.5">
+                <div className="w-7 h-7 rounded-xl bg-[#EAF0E5] text-[#557B5C] flex items-center justify-center shrink-0 mt-0.5">
+                  <Check className="w-3.5 h-3.5 text-[#718368]" />
                 </div>
                 <div>
                   <h2 className="text-xs font-bold text-[#403B34]">Plan with clarity</h2>
@@ -280,9 +317,9 @@ export default function WelcomePage() {
                 </div>
               </div>
 
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-xl bg-[#EAF0E5] text-[#557B5C] flex items-center justify-center shrink-0 mt-0.5">
-                  <Sparkles className="w-4 h-4 text-[#718368]" />
+              <div className="flex items-start gap-2.5">
+                <div className="w-7 h-7 rounded-xl bg-[#EAF0E5] text-[#557B5C] flex items-center justify-center shrink-0 mt-0.5">
+                  <Sparkles className="w-3.5 h-3.5 text-[#718368]" />
                 </div>
                 <div>
                   <h2 className="text-xs font-bold text-[#403B34]">Build lasting habits</h2>
@@ -290,9 +327,9 @@ export default function WelcomePage() {
                 </div>
               </div>
 
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-xl bg-[#EAF0E5] text-[#557B5C] flex items-center justify-center shrink-0 mt-0.5">
-                  <Headphones className="w-4 h-4 text-[#718368]" />
+              <div className="flex items-start gap-2.5">
+                <div className="w-7 h-7 rounded-xl bg-[#EAF0E5] text-[#557B5C] flex items-center justify-center shrink-0 mt-0.5">
+                  <Headphones className="w-3.5 h-3.5 text-[#718368]" />
                 </div>
                 <div>
                   <h2 className="text-xs font-bold text-[#403B34]">Focus deeply</h2>
@@ -302,34 +339,24 @@ export default function WelcomePage() {
             </div>
 
             {/* Zero Friction Trust Pill */}
-            <div className="mt-6 flex items-center gap-2 text-[11px] text-[#968D81]">
+            <div className="mt-4 flex items-center gap-2 text-[11px] text-[#968D81]">
               <ShieldCheck className="w-3.5 h-3.5 text-[#718368]" />
               <span>Private &amp; UID-isolated • No credit card required • Instant access</span>
             </div>
-          </motion.div>
+          </div>
 
-          {/* ── RIGHT COLUMN: Three.js 3D Universe + Integrated Auth Console ─── */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.97, y: 16 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ duration: 0.55, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-            className="lg:col-span-5 flex flex-col items-center justify-center relative w-full"
-          >
-            {/* Layer 5: Three.js Interactive Hero 3D Sculpture */}
-            <div className="absolute -top-12 -bottom-12 -left-12 -right-12 pointer-events-none z-0 opacity-90 sm:opacity-100 overflow-hidden">
-              <WelcomeHeroSceneLazy />
-            </div>
-
-            {/* Layer 6: Integrated Authentication Console Card */}
+          {/* ── RIGHT COLUMN: Integrated Auth Console ─── */}
+          <div className="lg:col-span-5 flex flex-col items-center justify-center relative w-full z-20">
+            {/* Integrated Authentication Console Card */}
             <div
               id="auth-card"
-              className="relative z-10 w-full max-w-md bg-white/88 backdrop-blur-xl rounded-3xl border border-[#E7E0D5]/90 p-7 sm:p-9 shadow-2xl shadow-[#403B34]/6 transition-all duration-300"
+              className="relative z-20 w-full max-w-md bg-white/94 backdrop-blur-xl rounded-3xl border border-[#E7E0D5] p-6 sm:p-7 shadow-xl shadow-[#403B34]/6 transition-all duration-300"
             >
               {/* Subtle Top Accent Accent Bar */}
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-1 bg-[#718368] rounded-full opacity-80" />
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-1 bg-[#718368] rounded-full opacity-80" />
 
               {/* Card Header */}
-              <div className="text-center mb-6">
+              <div className="text-center mb-5">
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EAF0E5] text-[#557B5C] border border-[#718368]/20 text-[11px] font-semibold mb-2.5 shadow-2xs">
                   <Sparkles className="w-3.5 h-3.5 text-[#718368]" />
                   <span>{isTourMode ? 'Product Showcase & Tour' : 'Personal Productivity Hub'}</span>
@@ -752,11 +779,30 @@ export default function WelcomePage() {
                 </span>
               </div>
             </div>
-          </motion.div>
+          </div>
         </div>
+      </div>
 
-        {/* ─── Feature Showcase Section (Below Hero) ────────────────────────── */}
-        <section className="mt-24 sm:mt-32 pt-16 border-t border-[#E7E0D5]/80">
+      {/* ─── Bottom Scroll Cue ─── */}
+      <div className="relative z-20 pb-4 text-center">
+        <button
+          type="button"
+          onClick={() => {
+            const el = document.getElementById('ecosystem-features');
+            el?.scrollIntoView({ behavior: 'smooth' });
+          }}
+          className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#756E64] hover:text-[#403B34] transition-colors cursor-pointer px-3.5 py-1.5 rounded-full bg-white/75 hover:bg-white border border-[#E7E0D5]/80 shadow-2xs backdrop-blur-xs"
+        >
+          <span>Explore Ecosystem</span>
+          <ArrowRight className="w-3 h-3 rotate-90 text-[#718368]" />
+        </button>
+      </div>
+    </section>
+
+    {/* ─── Subsequent Sections (Below Hero): Clean Warm Neutral Background ─── */}
+    <main id="ecosystem-features" className="relative z-10 max-w-7xl mx-auto w-full px-6 sm:px-10 lg:px-12 py-16 sm:py-24 scroll-mt-6">
+      {/* ─── Feature Showcase Section (Below Hero) ─── */}
+      <section className="pt-4 border-t border-[#E7E0D5]/80">
           <div className="text-center max-w-2xl mx-auto mb-14">
             <span className="text-xs font-bold uppercase tracking-widest text-[#718368] block mb-2">
               The Taskora Ecosystem
@@ -771,7 +817,7 @@ export default function WelcomePage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
             {/* Card 1: Intelligent Living Agenda */}
-            <div className="p-7 rounded-3xl bg-white/70 border border-[#E7E0D5]/90 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col justify-between group hover:border-[#718368]/40">
+            <div className="p-7 rounded-3xl bg-white/88 backdrop-blur-md border border-[#E7E0D5]/90 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col justify-between group hover:border-[#718368]/40">
               <div>
                 <div className="w-12 h-12 rounded-2xl bg-[#EAF0E5] text-[#557B5C] flex items-center justify-center shadow-2xs mb-5 group-hover:scale-105 transition-transform">
                   <Layers className="w-6 h-6 text-[#718368]" />
@@ -803,7 +849,7 @@ export default function WelcomePage() {
             </div>
 
             {/* Card 2: Resilient Habit Engine */}
-            <div className="p-7 rounded-3xl bg-white/70 border border-[#E7E0D5]/90 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col justify-between group hover:border-[#718368]/40">
+            <div className="p-7 rounded-3xl bg-white/88 backdrop-blur-md border border-[#E7E0D5]/90 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col justify-between group hover:border-[#718368]/40">
               <div>
                 <div className="w-12 h-12 rounded-2xl bg-[#EAF0E5] text-[#557B5C] flex items-center justify-center shadow-2xs mb-5 group-hover:scale-105 transition-transform">
                   <Flame className="w-6 h-6 text-[#718368]" />
@@ -835,7 +881,7 @@ export default function WelcomePage() {
             </div>
 
             {/* Card 3: Deep Focus Sanctuary */}
-            <div className="p-7 rounded-3xl bg-white/70 border border-[#E7E0D5]/90 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col justify-between group hover:border-[#718368]/40">
+            <div className="p-7 rounded-3xl bg-white/88 backdrop-blur-md border border-[#E7E0D5]/90 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col justify-between group hover:border-[#718368]/40">
               <div>
                 <div className="w-12 h-12 rounded-2xl bg-[#EAF0E5] text-[#557B5C] flex items-center justify-center shadow-2xs mb-5 group-hover:scale-105 transition-transform">
                   <Headphones className="w-6 h-6 text-[#718368]" />

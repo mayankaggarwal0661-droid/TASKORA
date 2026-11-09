@@ -28,6 +28,7 @@ import { soundService } from '@/features/audio/sound-service';
 import { CustomSoundStorage } from '@/features/audio/custom-sound-storage';
 import { applyTheme, getSavedTheme } from '@/features/theme/theme-config';
 import { useAuth } from '@/context/AuthContext';
+import { AvatarStorageService } from '@/features/profile/avatar-storage-service';
 
 interface TaskoraContextValue {
   todayStr: string;
@@ -81,6 +82,9 @@ interface TaskoraContextValue {
   isCommandPaletteOpen: boolean;
   openCommandPalette: () => void;
   closeCommandPalette: () => void;
+  isAvatarModalOpen: boolean;
+  openAvatarModal: () => void;
+  closeAvatarModal: () => void;
 
   // Storage
   exportData: () => string;
@@ -104,6 +108,7 @@ export function TaskoraProvider({ children }: { children: React.ReactNode }) {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
   const [toasts, setToasts] = useState<AppToast[]>([]);
 
   // Auth integration - Scopes task and routine data by Firebase UID or guest session
@@ -143,14 +148,20 @@ export function TaskoraProvider({ children }: { children: React.ReactNode }) {
       permission: NotificationService.getPermission()
     });
 
+    // Check locally cached avatar for this user UID
+    const cachedAvatar = authUid ? AvatarStorageService.getLocalAvatar(authUid) : null;
+    const resolvedAvatar = cachedAvatar || state.userProfile.avatarUrl || authUser?.photoURL || '';
+
     // Merge authenticated user info if logged in with Firebase (Google, Email)
     const updatedProfile: UserProfile = {
       ...state.userProfile,
       ...(authUser ? {
         name: authUser.displayName || state.userProfile.name || 'Taskora Member',
         email: authUser.email || (authUser.phoneNumber ? `Phone: ${authUser.phoneNumber}` : state.userProfile.email || ''),
-        avatarUrl: authUser.photoURL || state.userProfile.avatarUrl || '',
-      } : {})
+        avatarUrl: resolvedAvatar,
+      } : {
+        avatarUrl: resolvedAvatar,
+      })
     };
 
     setUserProfile(updatedProfile);
@@ -160,16 +171,52 @@ export function TaskoraProvider({ children }: { children: React.ReactNode }) {
     const activeTheme = updatedProfile?.accentColor || getSavedTheme();
     applyTheme(activeTheme);
 
-    // Initial check: if already granted, verify SW push subscription
-    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-      getCurrentPushSubscription().then((sub) => {
-        if (!sub && isWebPushSupported()) {
-          // Re-subscribe silently if permission was granted
-          subscribeToWebPush().catch(() => {});
-        }
-      });
-    }
   }, [authUid, authUser]);
+
+  // Initial check: if already granted, verify SW push subscription with safe document lifecycle guards
+  useEffect(() => {
+    let cancelled = false;
+
+    if (
+      typeof window === 'undefined' ||
+      !('Notification' in window) ||
+      Notification.permission !== 'granted' ||
+      !isWebPushSupported()
+    ) {
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      if (cancelled) return;
+
+      // Ensure document has finished loading and is fully active
+      if (document.readyState === 'loading') {
+        await new Promise<void>((resolve) => {
+          const onReady = () => {
+            window.removeEventListener('load', onReady);
+            resolve();
+          };
+          window.addEventListener('load', onReady, { once: true });
+        });
+      }
+      if (cancelled) return;
+
+      try {
+        const sub = await getCurrentPushSubscription();
+        if (cancelled) return;
+        if (!sub) {
+          await subscribeToWebPush(authUid);
+        }
+      } catch {
+        // Non-fatal background check
+      }
+    }, 600);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [authUid]);
 
   // Save state on changes (scoped to authenticated user)
   useEffect(() => {
@@ -736,6 +783,14 @@ export function TaskoraProvider({ children }: { children: React.ReactNode }) {
     setIsCommandPaletteOpen(false);
   }, []);
 
+  const openAvatarModal = useCallback(() => {
+    setIsAvatarModalOpen(true);
+  }, []);
+
+  const closeAvatarModal = useCallback(() => {
+    setIsAvatarModalOpen(false);
+  }, []);
+
   // --- STORAGE ACTIONS ---
   const exportData = useCallback(() => {
     const state: TaskoraStoreState = {
@@ -821,6 +876,9 @@ export function TaskoraProvider({ children }: { children: React.ReactNode }) {
         isCommandPaletteOpen,
         openCommandPalette,
         closeCommandPalette,
+        isAvatarModalOpen,
+        openAvatarModal,
+        closeAvatarModal,
         rescheduleTask,
         undoScheduleChange,
         canUndoSchedule: scheduleHistory.length > 0,

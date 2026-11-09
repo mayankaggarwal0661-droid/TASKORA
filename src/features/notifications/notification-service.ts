@@ -122,7 +122,7 @@ export class NotificationService {
     if ('serviceWorker' in navigator) {
       try {
         let reg: ServiceWorkerRegistration | null | undefined =
-          await navigator.serviceWorker.getRegistration();
+          await navigator.serviceWorker.getRegistration().catch(() => null);
         if (!reg?.active) {
           reg = await registerServiceWorker();
         }

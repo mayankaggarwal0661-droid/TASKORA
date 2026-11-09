@@ -2,10 +2,14 @@ import { CanonicalThemeId, LegacyThemeId } from '@/features/theme/theme-config';
 
 export type AccentTheme = CanonicalThemeId | LegacyThemeId;
 
+export type AvatarType = 'custom' | 'upload' | 'google' | 'default';
+
 export interface UserProfile {
   name: string;
   email: string;
   avatarUrl: string;
+  avatarType?: AvatarType;
+  avatarConfig?: Record<string, string>;
   role: string;
   timezone: string;
   accentColor: AccentTheme;
